@@ -1,0 +1,16 @@
+.env
+*.pem
+__pycache__/
+*.pyc
+cache/*
+!cache/polymarket_public.db
+!cache/build_public_export.py
+.venv/
+venv/
+
+# work in progress -- not ready to be public yet, being revised locally
+PAPER.md
+charts/
+
+# secrets -- never commit
+tradingbot_accessKeys.csv
