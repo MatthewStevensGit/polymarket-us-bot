@@ -7,10 +7,30 @@ cache/*
 !cache/build_public_export.py
 .venv/
 venv/
+venv-fleet/
 
 # work in progress -- not ready to be public yet, being revised locally
 PAPER.md
 charts/
 
+# Serena MCP local state (LSP cache + its own memory notes)
+.serena/
+
 # secrets -- never commit
 tradingbot_accessKeys.csv
+# `.env` alone matches only that exact name. The real Polymarket key and secret
+# reached a public repo in .env.example, and a .env.pre_rotation backup sitting
+# in the repo root would have been the next one -- both slipped past it.
+.env*
+!.env.example
+*.key
+*.p8
+*.csv
+
+# dev tooling — not part of the public World Cup slice
+.claude/
+tooling/
+.claude-flow/
+.ruflo/
+.swarm/
+.hive-mind/

@@ -1,170 +1,144 @@
-# Polymarket US — World Cup Player Prop Bot
+# Polymarket / Kalshi — Cross-Venue Prediction-Market Research System
 
-Pulls World Cup player prop markets (goals, assists, goals+assists) from the
-Polymarket US public API and caches current pricing locally. Read-only —
-no order placement.
+A data-collection and research stack for US prediction markets (Polymarket US,
+Kalshi). It discovers markets tied to real scheduled soccer matches across ~76
+leagues on two venues, records tick-level pricing and order-book depth on a
+schedule, archives concluded tournaments, and runs fee-aware analysis for genuine
+cross-venue pricing gaps.
+
+**This public repository is a curated slice: the Polymarket US collection layer
+and the data-architecture design.** The live-trading components — order
+execution, position management, the Kalshi client, the cross-venue scanner, the
+funded account — are kept in a private repository. Prediction-market credentials
+belong nowhere near a public remote, and this project has a documented incident
+that taught that lesson. What's here is the part that's safe to show and,
+arguably, the more interesting part: how a stack of collectors, ten SQLite
+databases, and a dozen scheduled jobs stay correct and auditable while running
+unattended.
+
+### What's actually in this repository
+
+- `collect_clean_triples.py` — the unattended Polymarket US collector, plus its
+  `data/` layer (`client.py`, `markets.py`, `cache.py`).
+- `cache/build_public_export.py` and `cache/polymarket_public.db` — the
+  export builder and a sample exported database (account ledger + archived tick
+  history in one shareable file).
+- `docs/DATABASE_ARCHITECTURE.md` — the full ten-database inventory.
+- `docs/polymarket-worldcup-paper.pdf` — a short research paper on 2026 World Cup
+  player-prop pricing.
+
+The Kalshi client, the cross-venue fee-aware scanner, the paper-trading loops,
+every order-placement path, and the live account ledger live in a private
+repository and are described below only for context.
+
+---
+
+## What the system does
+
+| | |
+|---|---|
+| **Discovers** | soccer markets on Polymarket US and Kalshi tied to a real scheduled match — team winner, spread, total, both-teams-to-score, player props — matched *structurally* (a `"Team vs Team (date)"` event shape), not by a hand-maintained series list, because Kalshi alone lists 1,000+ soccer series. |
+| **Collects** | tiered by time-to-kickoff: a slow routine cadence far out, a dense ±5-minute window at kickoff kept in its own table, bid/ask/last/volume/open-interest and top-of-book depth on every tracked market. Once a match is played, un-logged price data is gone for good — the collectors exist to close that gap. |
+| **Archives** | a concluded tournament's tracking tables move from the live DB into a cold-archive DB by `game_slug` prefix — copy, verify row counts, full backup, *then* delete. The live DB went from ~445 MB to ~760 KB this way. |
+| **Analyses** | a fee-aware scanner for Kalshi-vs-Polymarket pricing gaps on the same real-world outcome, net of both venues' real taker fees, with settlement-rule text pulled live so extra-time-eligible competitions are flagged as basis risk rather than treated as a clean lock. |
+
+---
+
+## Architecture
+
+Three public APIs feed scheduled collectors that write **ten independent SQLite
+databases**, deliberately not merged. The split is the point:
+
+- **`cache/polymarket.db` — LIVE.** Only the current season's tracking data plus
+  the permanent account ledger. Small, fast, always relevant.
+- **`cache/historical.db` — COLD ARCHIVE.** Concluded tournaments, same schema.
+  Large by design (hundreds of MB of tick history); never in the hot path.
+- **Per-engine research DBs** (paper-trading ledgers, the cross-venue scanner,
+  broad market capture) — each its own file, each its own schedule, none feeding
+  the others or the published results.
+
+A full inventory — every table, what writes it, what reads it, and a verdict on
+each — is in **[`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md)**.
+
+```
+Polymarket Gateway API ─┐
+Polymarket Trading API ─┼─▶  scheduled collectors  ─▶  cache/polymarket.db (LIVE)  ─▶  archive ─▶ historical.db ─▶ public export
+Kalshi Public API      ─┘        (1–15 min)               + per-engine research DBs (private, no path to published output)
+```
+
+---
+
+## Engineering worth a look
+
+- **Live / archive DB split.** Unbounded row growth — not table count — was the
+  real cost. `scripts/archive_to_historical.py` is a standing process, not a
+  one-off: filter by slug, verify the copy matches the source exactly, back up,
+  then delete, with SQLite cross-database rollback tested.
+- **Structural market discovery.** Kalshi lists 1,000+ soccer series and its own
+  data has copy-paste errors (a `*SPREAD` series titled `"… Game"`). Discovery
+  matches on event *shape* and cross-checks tickers against every known
+  market-type substring rather than trusting title text.
+- **Read-only dashboards that can't contend with the writer.** Local stdlib HTTP
+  servers, every DB connection opened `mode=ro` (enforced at the file level), so
+  a monitoring page can never block the live collector.
+- **Client-side rate limiting.** A thread-safe token bucket built into the Kalshi
+  client after 65 real 429s in one session were root-caused to concurrent workers
+  sharing one client with reactive-only backoff — smoothing the request rate
+  under the ceiling beats bursting then sleeping.
+- **Free-tier API budgeting.** Lineup-timestamp capture (api-football.com, 100
+  req/day *and* 10 req/min) is spent strategically inside the ~60–100-min
+  pre-kickoff announcement window and stops the moment lineups appear, rather
+  than polled on a timer.
+- **Honest results.** Where a scanned edge doesn't exist, it's reported as a zero,
+  not forced into a trade. Data-quality bugs (a rounded `qty` field overstating
+  partial fills by ~2%) are documented with the exact rows corrected.
+
+---
 
 ## Setup
 
 ```bash
-python -m venv venv
-venv\Scripts\activate      # macOS/Linux: source venv/bin/activate
+python -m venv venv && venv\Scripts\activate      # macOS/Linux: source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env                               # then fill in your own keys
 ```
 
-Create `.env` in the project root (see `.env.example`):
-```
-POLYMARKET_US_KEY_ID=your_key_id
-POLYMARKET_US_SECRET_KEY=your_secret_key
-```
-
-Credentials aren't used by `main.py` (market/event data is public,
-unauthenticated) but are used by `collect_clean_triples.py`'s `TradingClient`
-for read-only portfolio lookups (see below).
+`main.py` needs no credentials — Polymarket US market and event data is public
+and unauthenticated. The collector's account lookups are **GET-only by design**
+(`TradingClient` in `data/client.py` has no order-placement methods — an explicit
+phase boundary, not an oversight).
 
 ## Run
 
 ```bash
-python main.py            # fetch player prop markets + prices, cache to SQLite
-python main.py --csv      # also export the full cache history to cache/prop_snapshots.csv
-python main.py --raw      # print a raw sample event/market JSON, for schema discovery
+python main.py                      # fetch current World Cup player-prop markets + prices, cache to SQLite
+python main.py --raw                # print a raw event/market JSON sample (schema discovery), no caching
+python collect_clean_triples.py     # the unattended collector — run on a 1-min timer
 ```
 
-World Cup events are discovered via the league's active series, not a
-category filter: `GET /v2/leagues/fwc` gives `activeSeriesId`, then
-`GET /v1/events?seriesId=...` (paginated) returns every event tagged to that
-series — past, live, and upcoming games plus tournament-wide futures. This
-picks up newly confirmed matchups automatically as the tournament progresses.
-Player prop markets are matched by exact `sportsMarketType` value
-(`soccer_player_goals`, `soccer_player_assists`,
-`soccer_player_goals_plus_assists` — see `PROP_SPORTS_MARKET_TYPES` in
-`config.py`), confirmed against live event data.
+## Stack
 
-## Structure
+Python 3.13 · `requests` · `pynacl` · SQLite (WAL, `mode=ro` readers) · Windows
+Task Scheduler · no heavyweight dependencies in the collection path.
+
+## Layout (this repo)
 
 ```
-config.py          .env-based config, base URLs, discovery filters
-data/client.py      thin wrapper over the public gateway.polymarket.us API
-data/markets.py      event/market discovery + player-prop filtering
-data/cache.py         SQLite cache (cache/polymarket.db), append-only snapshots
-signals/              (empty) probability/signal logic — future phase
-execution/            (empty) order placement — future phase
-main.py               CLI entry point
+config.py                             .env-based config, base URLs, discovery filters
+main.py                               World Cup player-prop fetch + ad-hoc schema discovery (--raw)
+collect_clean_triples.py              the unattended live collector
+data/client.py                        Polymarket US — public gateway client + GET-only TradingClient
+data/markets.py                       World Cup event discovery + player-prop market filtering
+data/cache.py                         append-only SQLite snapshot cache (cache/polymarket.db)
+cache/build_public_export.py          live ledger + archive → one shareable export
+cache/polymarket_public.db            sample public export
+docs/DATABASE_ARCHITECTURE.md         full ten-database inventory
+docs/polymarket-worldcup-paper.pdf    research paper
 ```
 
-## API notes
+`signals/` and `execution/` are namespace placeholders in this slice — the
+probability models and decision logic are in the private repository.
 
-- Public market data (events, markets, order book, BBO) lives at
-  `https://gateway.polymarket.us` and needs no authentication.
-- `/v1/events`'s `categories` param filters on a coarse content vertical —
-  every sport reports `category: "sports"`, so `categories=soccer` silently
-  matches nothing. Per-sport/league filtering lives under `/v2/sports` and
-  `/v2/leagues/{slug}` instead; see `find_world_cup_events` in
-  `data/markets.py`.
-- Trading/account data lives at `https://api.polymarket.us` and needs the
-  `X-PM-Access-Key` / `X-PM-Timestamp` / `X-PM-Signature` headers, Ed25519-signed
-  over `{timestamp}{method}{path}` (query params and body are NOT signed).
-  Implemented in `TradingClient` (`data/client.py`) — but **GET-only by
-  design**: `get_positions` (`/v1/portfolio/positions`) and `get_activities`
-  (`/v1/portfolio/activities`, real executed-trade history). No order
-  creation/modification/cancellation/close-position methods exist anywhere
-  in this class or file — that's an explicit execution-phase boundary, not
-  an oversight.
-- The report endpoints under `api.prod.polymarketexchange.com`
-  (`search-trades`, `get-trade-stats`, `download-trades-csv`) use a
-  *different* auth scheme entirely (Private Key JWT via Auth0, RSA PEM key
-  from a separate onboarding flow) — confirmed by live testing (401 even
-  with the docs claiming no auth needed). They're not reachable with the
-  HMAC credentials above; `TradingClient` targets `api.polymarket.us`
-  instead, which the existing `.env` credentials actually match.
-- There's no public historical-price endpoint — only current book/BBO
-  snapshots. `data/cache.py` appends a timestamped row per run so repeated
-  pulls build a local price history over time.
-- One doc page (`order-book/get-order-book.md`,
-  `order-book/get-best-bidoffer.md`) references a different base URL
-  (`api.prod.polymarketexchange.com`) and a `BTC-USD`-style symbol param —
-  that looks like stale/unrelated content in the docs, not the prediction
-  market order book. Use `markets/get-market-bbo` and `markets/get-market-book`
-  instead (`gateway.polymarket.us/v1/markets/{slug}/bbo` and `.../book`),
-  which match the rest of the market data model.
+## License
 
-## collect_clean_triples.py
-
-Standalone, unattended collector (no AI/Claude dependency) meant to run on a
-timer, e.g. Windows Task Scheduler every 1 minute:
-
-```bash
-python collect_clean_triples.py
-```
-
-Writes to `cache/polymarket.db`:
-- `clean_price_triples` — deduped research sample of goals/assists/goals+assists
-  last-trade triples from confirmed pre-kickoff games (tiered polling by
-  time-to-kickoff; state tracked in `game_poll_state`).
-- `position_price_history` — dense, un-deduped bid/ask/last timeline, logged
-  every single run regardless of tier. Tracked players/games are derived
-  live from whatever `clean_price_triples` currently contains
-  (`_get_tracked_positions`) -- a player only needs real
-  goals/assists/goals+assists price data to get this denser tracking, not a
-  confirmed held position. Tracks all three market types per player:
-  `goals`, `assists`, and `goals+assists` (`WATCHED_TYPES`).
-- `order_book_snapshots` — top `ORDER_BOOK_DEPTH` bid/offer levels (price +
-  size, JSON) for the same watchlist, same cadence. **Caveat:** a price level
-  disappearing between two snapshots could mean either a fill or a plain
-  cancellation — this data alone can't distinguish the two. Doing so would
-  require matching that level's price against a `last_trade_px` change in
-  `position_price_history` at the same timestamp.
-- `trade_history` — real executed trades for the watchlist, from
-  `TradingClient.get_activities`, deduped on `trade_id`.
-- `kickoff_window_snapshots` — high-frequency layer on top of the tiers
-  above, active only within +/- `KICKOFF_WINDOW_SECONDS` (5 min) of a
-  watched game's kickoff: polls `goals`/`goals+assists` 1+ markets every
-  `KICKOFF_WINDOW_POLL_INTERVAL` (10s) via `get_market_book`, for up to
-  `KICKOFF_WINDOW_RUN_SECONDS` (45s) per collector run. Kept in its own
-  table rather than mixed into `position_price_history` — this is for
-  investigating a specific unexplained price move, not routine monitoring.
-  A no-op (fast, single API call per game) when no game is near kickoff.
-
-### Per-game views
-
-`_ensure_game_views` (called every time `_connect()` runs) auto-creates two
-SQL views per currently-tracked game (per `_get_tracked_positions`), named
-`view_<table>_<3-letter>_<3-letter>` (e.g. `view_position_price_history_eng_cod`,
-`view_order_book_snapshots_bel_sen`). A new game gets its views on the next
-collector run automatically — no manual SQL needed. These are true SQL
-`VIEW` objects (confirmed via `sqlite_master.type`), not copied tables: each
-is just a saved `SELECT`, re-run against the live base table on every read,
-so it cannot hold stale data.
-
-Both are pivoted to one row per `(fetched_at, player)`, columns per market
-type instead of one row per `(fetched_at, player, market_type)`:
-- `view_position_price_history_*`: `goals_bid`, `goals_ask`, `assists_bid`,
-  `assists_ask`, `ga_bid`, `ga_ask`.
-- `view_order_book_snapshots_*`: top-of-book only (index `[0]` of each side's
-  JSON array) — `goals_bid_px`, `goals_bid_sz`, `goals_ask_px`,
-  `goals_ask_sz`, `assists_bid_px`, `assists_bid_sz`, `assists_ask_px`,
-  `assists_ask_sz`, `ga_bid_px`, `ga_bid_sz`, `ga_ask_px`, `ga_ask_sz`.
-
-### Data-quality notes
-
-- The first 12 `trade_history` rows (logged 2026-07-01, before the fix below)
-  had their `qty` pulled from the API's `trade.qty` field, which is a
-  *rounded* display value — e.g. one row showed `qty=21` for a fill that was
-  actually `20.54` shares (confirmed via `cost / price`). That's a ~2%
-  overstatement on partial fills where the rounding is visible; whole-number
-  fills (e.g. `56`, `600`) were unaffected. Rows logged after the fix pull the
-  exact fill size from the matching execution object's `lastShares` field
-  instead.
-- The 3 affected rows for the `AXDZT5Q445HS` order (trade IDs `AXG3KSV2T5GZ`,
-  `AXG3KSV2M5GZ`, `AXG3KSV2E5GZ`) were manually corrected to `20.54`, `56`,
-  `600`.
-- 2026-07-03: full sweep completed. Cross-checked all 62 `trade_history` rows
-  against a fresh, fully-paginated `get_activities()` pull (392 account
-  trades) -- zero rows missing in either direction, so this was purely a qty
-  precision issue, not a completeness gap. Found and corrected 6 total
-  pre-fix rows carrying the rounded value (the 3 above already fixed, plus
-  `ASGD0CQH04K4` 28→27.64, `AXF2GEXG65GZ` 14→13.7, `AZEE1PKXE5GZ` 161→160.8,
-  `AZEF9A0KR5GZ` 142→142.25, `AZEGC45805GZ` 172→171.75, `AZESPGKSM5GZ`
-  156→155.9). Every trade logged after the code fix has checked out clean in
-  every sweep run so far -- as of this date, no pre-fix rows remain
-  uncorrected.
+MIT — see [LICENSE](LICENSE).
