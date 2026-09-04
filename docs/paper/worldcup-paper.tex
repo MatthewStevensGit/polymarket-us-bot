@@ -79,7 +79,10 @@ requoted, and whoever acts before the book adjusts is trading a latency gap.
 The purpose of this paper is to measure the pricing inefficiency, test whether it
 is a consistent and statistically significant effect, and evaluate whether either
 strategy built around it beats the market's own pricing rather than merely
-trading faster than it.
+trading faster than it. Only the first does. The speed strategy is profitable,
+but because it buys contracts already priced near certainty, its win rate is the
+arithmetic of those prices and not a measurable edge --- a distinction Section 5
+makes precise.
 
 \section{Data Pipeline and Screening Architecture}
 
@@ -288,14 +291,22 @@ z = \frac{0.849 - 0.812}{\sqrt{\dfrac{0.812\,(1 - 0.812)}{73}}} = 0.81,
 \includegraphics[width=\linewidth]{figures/fig5_calibration.png}
 \end{center}
 
-We fail to reject the null hypothesis. The plot shows the realized win rate
-tracking the average entry price closely in every bucket --- the market was
-already priced fairly. The dominant bucket by volume --- 52 of 73
-positions --- resolved ``Yes'' 100\% of the time against a 98.7\% average entry
-price, which is exactly what a well-calibrated market predicts. The positive
-side's profit is real and mechanically reliable, but it is not evidence of
-beating the market's pricing: the edge is being fast enough to buy before the
-book reprices, not being smarter about the true probability once bought.
+We fail to reject the null hypothesis, and two features of this test matter more
+than the failure itself. First, the realized win rate carries almost no
+information at these price levels. The dominant bucket --- 52 of 73 positions ---
+entered at a 98.7\% average price and resolved ``Yes'' 52 times out of 52; but
+under the market's own pricing, a perfect record across those positions has
+probability $0.987^{52} \approx 0.51$. A flawless outcome there is a coin flip,
+not a demonstrated skill, and the plot shows the same thing in every bucket: the
+realized rate tracks the price the account paid. Second, the test is underpowered
+against the edge the mechanism actually claims. At $n = 73$ and a null of 81.2\%,
+the realized rate would have had to reach roughly 88.7\% to reject at conventional
+significance --- an eight-point margin over the market's price --- while Section 7
+claims only a two-to-three-point timing edge. The correct reading of $p = 0.21$
+is therefore ``no edge large enough for this sample to detect,'' not ``edge ruled
+out.'' The positive side's profit is real and mechanically reliable; it is simply
+not something a win rate can attribute to skill rather than to buying contracts
+the market had already priced near certainty.
 
 \subsection{Test 3: Is the speed strategy's negative side calibrated?}
 
@@ -316,7 +327,35 @@ realized results are worse than its own entry prices implied. The shortfall live
 entirely in the thirteen positions entered below 90\% implied confidence, where a
 30.8\% realized win rate ran against a 76.4\% implied one. Two positions drive it,
 and Section 6 examines them directly. The dominant, highest-confidence majority
-(89 of 102 positions) is calibrated almost exactly as well as the positive side.
+(89 of 102 positions) entered at a 98.4\% average price and won 97.8\% of the
+time --- the same uninformative regime as the positive side's 52-position bucket,
+where realized results and the price paid are mechanically almost identical and
+neither confirms nor denies an edge. The finding here is carried entirely by the
+minority of lower-confidence entries.
+
+\subsection{What the win rates do and do not show}
+
+The headline win rates elsewhere in this paper --- 85.5\% for the speed
+strategy's positive side, 89.2\% for its negative side, 87.8\% combined --- invite
+a reading they cannot support. Both sides buy contracts the market has already
+priced between roughly 80\% and 99\% and hold them to settlement, so a high win
+rate is the arithmetic those entry prices predict, not a result. A perfectly
+calibrated market handed the same trades would produce the same numbers. The only
+question that separates edge from arithmetic is whether the realized rate exceeds
+the price the account paid, and Tests 2 and 3 answer it: the positive side shows
+no detectable excess, and the negative side shows a deficit. Neither is the
+profile of a strategy that prices better than the market.
+
+That leaves the speed strategy's profitability resting entirely on a timing
+claim --- that it buys after a goal, substitution, or whistle is public but
+before the resting book has requoted. A win rate cannot establish this, because a
+stale price and a fair price at 99\% resolve the same way. The only direct
+evidence is the reaction-time sample in Section 2: seven independently
+timestamped goals, a mean latency near 91 seconds, every entry landing while the
+contract still traded below the post-event fact. Seven observations is a genuine
+distribution but a thin one, and it is the load-bearing evidence for the entire
+speed strategy. The patience strategy is the only one in this paper whose edge
+survives a test against the market's own pricing.
 
 \subsection{Multiple comparisons and in-sample validity}
 
@@ -512,6 +551,12 @@ Validated edge?  & Yes ($p<0.000001$) & No ($p=0.21$) & No --- underperforms ($p
 \end{tabular}
 \end{center}
 
+The win-rate row is reported for completeness but discriminates almost nothing
+for the speed strategy: both of its sides bought contracts the market had already
+priced between 80\% and 99\%, so a high win rate is what those entry prices
+predict rather than a result (Section 5.4). The ``validated edge'' row is the one
+that separates the three, and only the patience strategy clears it.
+
 Within the patience strategy, the fill-risk split is the more informative
 comparison: the 56 positions that exited before kickoff won 94.6\% of the time,
 and the 136 carried into live play won 78.7\%.
@@ -561,12 +606,17 @@ carries a quantifiable and mechanical pricing inefficiency. Its bid falls below
 the logical floor $P(\text{goal} \cup \text{assist}) \geq P(\text{goal})$ in
 28.81\% of 124{,}571 pre-kickoff observations, and that staleness reverts toward
 fair value far more often than a volatility-matched random walk predicts ---
-63.0\% against 15.1\%, $p < 0.000001$. A second strategy, trading confirmed
-public events directly, is profitable but mechanical: a calibration test finds
-its positive side statistically indistinguishable from its own entry pricing, and
-its negative side significantly worse. The account converted \$1{,}200 into
-\$691.58 in fully realized profit over thirty-five days, outperforming SPY
-($+51.9\%$ against $-1.5\%$) over the identical window.
+63.0\% against 15.1\%, $p < 0.000001$. This is the only edge in the paper that
+survives a test against the market's own pricing. A second strategy, trading
+confirmed public events directly, is profitable but its results are not
+evidence of skill: it buys contracts already priced at 80\% to 99\% and holds
+them, so its high win rate is arithmetic those prices predict, and a calibration
+test finds its positive side indistinguishable from its own entry pricing and its
+negative side significantly worse. What profit it makes rests on a timing claim
+the win rate cannot test and that only seven directly measured event latencies
+support. The account converted \$1{,}200 into \$691.58 in fully realized profit
+over thirty-five days, outperforming SPY ($+51.9\%$ against $-1.5\%$) over the
+identical window.
 
 The inefficiency is real, but it is capacity-bound by construction. The account
 held the least capital when tournament opportunity was greatest and the most when
