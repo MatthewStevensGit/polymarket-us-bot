@@ -1,8 +1,9 @@
 # World Cup paper — source
 
 `worldcup-paper.tex` is the source for `docs/polymarket-worldcup-paper.pdf`.
-MLA layout (Times 12pt, double-spaced, `Ginzburg N` running header), structured
-to match C. Byhre, *Unhalt Reversion Strategy*: numbered sections in the order
+Title: *Synthetic Fair-Value Strategy*. MLA layout (Times 12pt, double-spaced,
+`Ginzburg N` running header), structured to match C. Byhre, *Unhalt Reversion
+Strategy*: numbered sections in the order
 Introduction → Data Pipeline → Signal Identification → Data Analysis →
 Statistical Testing → Risk → Execution Model → Final Weights → Results →
 Conclusion.
