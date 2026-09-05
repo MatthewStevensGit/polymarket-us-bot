@@ -26,6 +26,11 @@ unattended.
   revision of this same script that is what actually produced the ledger
   backing the paper and the export below. That revision isn't part of this
   public slice.
+- `record_fanduel_comparison.py` — a manual, one-off-per-invocation script:
+  look up a player's FanDuel odds by hand, log the comparison against
+  Polymarket's current price to `cache/polymarket.db` (`fanduel_comparison`).
+  Not a scheduled job — FanDuel's research pages have no reliable per-player
+  URL or refresh signal to poll.
 - `cache/build_public_export.py` and `cache/polymarket_public.db` — the
   export builder and a sample exported database: the account ledger and
   archived tick-data tables, filtered to the paper's own analysis window
@@ -48,7 +53,7 @@ exported here is a historical slice, not a live feed.
 |---|---|
 | **Discovers** | soccer markets on Polymarket US and Kalshi tied to a real scheduled match — team winner, spread, total, both-teams-to-score, player props — matched *structurally* (a `"Team vs Team (date)"` event shape), not by a hand-maintained series list, because Kalshi alone lists 1,000+ soccer series. |
 | **Collects** | tiered by time-to-kickoff: a slow routine cadence far out, a dense ±5-minute window at kickoff kept in its own table, bid/ask/last/volume/open-interest and top-of-book depth on every tracked market. Once a match is played, un-logged price data is gone for good — the collectors exist to close that gap. |
-| **Archives** | a concluded tournament's tracking tables move from the live DB into a cold-archive DB by `game_slug` prefix — copy, verify row counts, full backup, *then* delete. The live DB went from ~445 MB to ~760 KB this way. |
+| **Archives** | a concluded tournament's tracking tables move from the live DB into a cold-archive DB by `game_slug` prefix — copy, verify row counts, full backup, *then* delete. The live DB dropped from ~445 MB to ~760 KB the day the World Cup archive ran; it's grown since as the account's still-private, ongoing trading keeps using the same ledger file. |
 | **Analyses** | a fee-aware scanner for Kalshi-vs-Polymarket pricing gaps on the same real-world outcome, net of both venues' real taker fees, with settlement-rule text pulled live so extra-time-eligible competitions are flagged as basis risk rather than treated as a clean lock. |
 
 ---
@@ -139,6 +144,7 @@ collect_clean_triples.py              the unattended live collector
 data/client.py                        Polymarket US — public gateway client + GET-only TradingClient
 data/markets.py                       World Cup event discovery + player-prop market filtering
 data/cache.py                         append-only SQLite snapshot cache (cache/polymarket.db)
+record_fanduel_comparison.py          on-demand: log one FanDuel-vs-Polymarket price comparison by hand
 cache/build_public_export.py          live ledger + archive → one shareable export
 cache/polymarket_public.db            sample public export
 docs/DATABASE_ARCHITECTURE.md         full ten-database inventory
