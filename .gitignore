@@ -34,3 +34,7 @@ tooling/
 .ruflo/
 .swarm/
 .hive-mind/
+
+# DB Browser for SQLite UI-state file -- hardcodes a local absolute path
+# (C:/Users/<name>/...), not part of the public slice, no functional purpose
+*.sqbpro

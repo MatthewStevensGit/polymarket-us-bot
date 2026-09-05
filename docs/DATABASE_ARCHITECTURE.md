@@ -41,6 +41,13 @@ to published results.** The paper-trading and research databases never reach it.
 | `cash_activity` | deposits / withdrawals / transfers | NAV / Modified-Dietz return calc |
 | `closed_trades_pnl` / `open_positions` | fully derived — rebuilt from the three tables above every run | dashboards, published results |
 
+> The public repository's `collect_clean_triples.py` is an earlier snapshot
+> that only creates `trade_history` and `closed_trades_pnl`; `settlement_history`,
+> `cash_activity`, and `event_latency_validation` were added in a later,
+> private revision. `cache/polymarket_public.db` ships all four, sourced from
+> the live account and window-filtered to the paper's 2026-06-15–2026-07-19
+> analysis period.
+
 **Active-season tracking** (archived when a tournament concludes):
 
 | table | what it holds | cadence |
