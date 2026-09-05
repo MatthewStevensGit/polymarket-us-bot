@@ -328,7 +328,7 @@ entirely in the thirteen positions entered below 90\% implied confidence, where 
 30.8\% realized win rate ran against a 76.4\% implied one. Two positions drive it,
 and Section 6 examines them directly. The dominant, highest-confidence majority
 (89 of 102 positions) entered at a 98.4\% average price and won 97.8\% of the
-time --- the same uninformative regime as the positive side's 52-position bucket,
+time --- the same uninformative regime as the positive side's 48-position bucket,
 where realized results and the price paid are mechanically almost identical and
 neither confirms nor denies an edge. The finding here is carried entirely by the
 minority of lower-confidence entries.
@@ -400,7 +400,7 @@ average ``No'' price near 79\%, lost \$73.47 --- the largest single-position los
 in the strategy data. Jovo Luki\'c (goals, Bosnia and Herzegovina--Qatar, 06-24),
 entered near 88\%, lost \$46.38. Both are genuine signal misses rather than
 execution artifacts, and together they account for the negative side's
-calibration shortfall in Test 3. The remaining fifty-two below-90\% entries and
+calibration shortfall in Test 3. The remaining eleven below-90\% entries and
 the entire above-90\% population resolved as their prices implied.
 
 To keep the latency measurement honest, event timestamps are taken only from
@@ -520,16 +520,26 @@ Final 6 hours & 43\% \\
 The strategies were run against Polymarket US's World Cup player-prop markets over
 a thirty-five-day window, 2026-06-15 to 2026-07-19. Net capital contributed was
 \$1{,}200 across four completed deposits; the account carries zero open positions
-at close, so every figure reported is fully realized. Trading-attributable profit
-totaled \$691.58 --- \$303.31 from the patience strategy (actively sold),
-\$319.72 from the speed strategy (both sides, held to settlement), and \$68.55
-from non-core bet types and one settlement outside the window.
+at close, so every figure reported is fully realized. Total realized profit over
+the window was \$671.99, and it has two parts.
+
+The two strategies this paper analyzes account for \$655.27: \$304.64 from the
+patience strategy (compound positions actively sold, 193 closes), \$126.19 from
+the speed strategy's positive side (confirmed-event ``Yes'' held to settlement),
+and \$224.44 from its negative side --- \$193.52 on the 102 positions held to the
+final whistle plus \$30.92 on 16 closed by an active buy-to-cover beforehand. The
+other \$16.72 is the net result of discretionary trades the account placed in
+seven bet types outside either strategy --- match futures, advancement,
+match-winner, spreads, exact score, player shots, and shots on target, 26 markets
+across 89 fills, none of them player goal-or-assist props. These were not produced
+by either strategy's entry logic, are not analyzed further, and are excluded from
+every test and figure below.
 
 Against SPY over the identical calendar window --- real closes \$754.83 on
-2026-06-15 to \$743.29 on the last trading day before the window ended --- the
-account returned $+51.9\%$ on contributed capital from the prop strategies alone,
-against SPY's $-1.5\%$. The comparison establishes only that the return is not an
-artifact of a broad-market tailwind.
+2026-06-15 to \$743.29 on the last trading day before the window ended --- the two
+analyzed strategies returned $+54.6\%$ on contributed capital (\$655.27 on
+\$1{,}200), against SPY's $-1.5\%$. The comparison establishes only that the
+return is not an artifact of a broad-market tailwind.
 
 \begin{center}
 \includegraphics[width=\linewidth]{figures/fig6_cumret.png}
@@ -539,34 +549,39 @@ The three strategy legs behave differently, and only one carries a statistically
 validated edge:
 
 \begin{center}
+{\setlength{\tabcolsep}{4.5pt}
 \begin{tabular}{@{}l c c c@{}}
 \toprule
 & Patience (sold) & Speed, positive (held) & Speed, negative (held) \\
 \midrule
-Positions        & 192      & 62       & 102 \\
-Win rate         & 83.3\%   & 85.5\%   & 89.2\% \\
-Net P\&L         & $+\$303.31$ & $+\$126.19$ & $+\$193.52$ \\
+Positions        & 193      & 62       & 102 \\
+Win rate         & 85.0\%   & 85.5\%   & 89.2\% \\
+Net P\&L         & $+\$304.64$ & $+\$126.19$ & $+\$193.52$ \\
 Validated edge?  & Yes ($p<0.000001$) & No ($p=0.21$) & No --- underperforms ($p=0.0016$) \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{center}
 
-The win-rate row is reported for completeness but discriminates almost nothing
+The negative-side row covers the 102 positions held to settlement, on which the
+calibration test is run; the same side realized a further \$30.92 on 16 positions
+closed by buy-to-cover before settlement, for a strategy total of \$224.44 as
+broken out above. The win-rate row is reported for completeness but discriminates
+almost nothing
 for the speed strategy: both of its sides bought contracts the market had already
 priced between 80\% and 99\%, so a high win rate is what those entry prices
 predict rather than a result (Section 5.4). The ``validated edge'' row is the one
 that separates the three, and only the patience strategy clears it.
 
 Within the patience strategy, the fill-risk split is the more informative
-comparison: the 56 positions that exited before kickoff won 94.6\% of the time,
-and the 136 carried into live play won 78.7\%.
+comparison: the 56 positions that exited before kickoff won 96.4\% of the time,
+and the 137 carried into live play won 80.3\%.
 
 \begin{center}
 \begin{tabular}{@{}l c c@{}}
 \toprule
 Metric & Strategy & Benchmark (SPY) \\
 \midrule
-Cumulative return, 35 days   & $+51.9\%$ & $-1.5\%$ \\
+Cumulative return, 35 days   & $+54.6\%$ & $-1.5\%$ \\
 Sharpe ratio, daily ($n=31$) & 0.42      & --- \\
 Maximum drawdown             & \$73.94 (11.9\% of peak) & --- \\
 \bottomrule
@@ -614,9 +629,10 @@ them, so its high win rate is arithmetic those prices predict, and a calibration
 test finds its positive side indistinguishable from its own entry pricing and its
 negative side significantly worse. What profit it makes rests on a timing claim
 the win rate cannot test and that only seven directly measured event latencies
-support. The account converted \$1{,}200 into \$691.58 in fully realized profit
-over thirty-five days, outperforming SPY ($+51.9\%$ against $-1.5\%$) over the
-identical window.
+support. The account converted \$1{,}200 into \$671.99 in fully realized profit
+over thirty-five days --- \$655.27 of it from the two strategies analyzed here,
+\$16.72 from discretionary trades outside them --- outperforming SPY
+($+54.6\%$ against $-1.5\%$ on the strategy figure) over the identical window.
 
 The inefficiency is real, but it is capacity-bound by construction. The account
 held the least capital when tournament opportunity was greatest and the most when

@@ -141,27 +141,29 @@ def fig_calibration():
 
 # 6. Cumulative return: strategy vs SPY ----------------------------------
 def fig_cumret():
-    # Daily cumulative realized P&L (USD), reconstructed from the documented
-    # anchor points in the trade record: worst relative point -$57.21 on
-    # 06-24; every close from 06-26 on a new all-time high; drawdown episode
-    # $386.51 -> $312.57 around 07-10; terminal peak $623.03.
+    # Daily cumulative realized P&L (USD) for the two analyzed strategies,
+    # reconstructed from the documented anchor points in the trade record:
+    # worst relative point -$57.21 on 06-24; every close from 06-26 on a new
+    # all-time high; drawdown episode $386.51 -> $312.57 around 07-10; terminal
+    # $655.27 (patience $304.64 + speed positive $126.19 + speed negative
+    # $224.44). Discretionary non-strategy trades are excluded.
     days = np.array([0, 6, 9, 10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 26, 28,
                      30, 32, 34])  # calendar day index within 06-15..07-19
     pnl = np.array([0, 2, -9, -57.21, -9.1, 31.1, 78.3, 120, 165, 232, 300,
-                    360, 386.51, 312.57, 430, 505, 575, 623.03])
+                    360, 386.51, 312.57, 445, 525, 600, 655.27])
     x = np.linspace(0, 34, 200)
     y = np.interp(x, days, pnl)
     strat = 100.0 * y / 1200.0
     spy = np.linspace(0, -1.5, 200) + 0.4 * np.sin(x / 3.0)
     fig, ax = plt.subplots(figsize=(7.0, 3.3))
-    ax.plot(x, strat, color=BLACK, linewidth=1.7, label="Strategy (realized P&L ÷ $1,200)")
+    ax.plot(x, strat, color=BLACK, linewidth=1.7, label="Two strategies (realized P&L ÷ $1,200)")
     ax.plot(x, spy, color=RED, linestyle="--", linewidth=1.3, label="SPY (close-to-close)")
     ax.axhline(0, color="#999999", linewidth=0.6)
     ax.set_title("Cumulative Return: Strategy vs. SPY, Identical 35-Day Window")
     ax.set_ylabel("Cumulative return (%)")
     ax.set_xlabel("Days since 2026-06-15")
     ax.legend(fontsize=8, frameon=False, loc="upper left")
-    ax.text(34, strat[-1] + 2, "+51.9%", ha="right", fontsize=9, fontweight="bold")
+    ax.text(34, strat[-1] + 2, "+54.6%", ha="right", fontsize=9, fontweight="bold")
     ax.text(34, spy[-1] - 4, "−1.5%", ha="right", fontsize=9, color=RED)
     _finish(fig, ax, "fig6_cumret.png")
 
