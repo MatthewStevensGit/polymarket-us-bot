@@ -19,17 +19,26 @@ unattended.
 ### What's actually in this repository
 
 - `collect_clean_triples.py` — the unattended Polymarket US collector, plus its
-  `data/` layer (`client.py`, `markets.py`, `cache.py`).
+  `data/` layer (`client.py`, `markets.py`, `cache.py`). This is an earlier
+  snapshot of the collector: the account-ledger tables it creates here
+  (`trade_history`, `closed_trades_pnl`) predate `settlement_history`,
+  `cash_activity`, and `event_latency_validation` — added in a later, private
+  revision of this same script that is what actually produced the ledger
+  backing the paper and the export below. That revision isn't part of this
+  public slice.
 - `cache/build_public_export.py` and `cache/polymarket_public.db` — the
-  export builder and a sample exported database (account ledger + archived tick
-  history in one shareable file).
+  export builder and a sample exported database: the account ledger and
+  archived tick-data tables, filtered to the paper's own analysis window
+  (2026-06-15 to 2026-07-19) so none of the account's later, unrelated
+  real-money trading leaks in.
 - `docs/DATABASE_ARCHITECTURE.md` — the full ten-database inventory.
 - `docs/polymarket-worldcup-paper.pdf` — a short research paper on 2026 World Cup
   player-prop pricing.
 
 The Kalshi client, the cross-venue fee-aware scanner, the paper-trading loops,
-every order-placement path, and the live account ledger live in a private
-repository and are described below only for context.
+every order-placement path, and the account's *current, ongoing* ledger live
+in a private repository and are described below only for context — what's
+exported here is a historical slice, not a live feed.
 
 ---
 
