@@ -273,78 +273,63 @@ holding period, not by the walk being pushed outward. Re-running the null with
 reflecting barriers at the price bounds would raise the simulated rate somewhat
 but would not close the gap.
 
-\subsection{Test 2: Does the speed strategy's positive side beat the market's pricing?}
+\subsection{Test 2: Is the speed strategy calibrated?}
 
-The positive side buys ``Yes'' on a confirmed goal or assist. The null
-hypothesis is that the market was already pricing those contracts efficiently, so
-the true win probability equals the average entry price.
+The speed strategy trades a confirmed public event before the resting book
+requotes. Which side it ends up holding depends on the event: a confirmed goal or
+assist leaves it long ``Yes,'' a confirmed substitution or full-time whistle
+leaves it long ``No.'' Both are the same trade --- act on public news faster than
+the book adjusts --- applied to opposite events, so they are tested together. The
+null hypothesis is that the market was already pricing those contracts
+efficiently, so the true win probability equals the average price the account
+paid for the side it held.
 \begin{align*}
-H_0:\; p = 0.852 \qquad H_1:\; p \neq 0.852 \qquad
-n = 62, \quad \hat p = 0.855
+H_0:\; p = 0.917 \qquad H_1:\; p \neq 0.917 \qquad
+n = 164, \quad \hat p = 0.878
 \end{align*}
 \[
-z = \frac{0.855 - 0.852}{\sqrt{\dfrac{0.852\,(1 - 0.852)}{62}}} = 0.07,
-\qquad p = 0.94.
+z = \frac{0.878 - 0.917}{\sqrt{\dfrac{0.917\,(1 - 0.917)}{164}}} = -1.81,
+\qquad p = 0.070.
 \]
 
 \begin{center}
 \includegraphics[width=\linewidth]{figures/fig5_calibration.png}
 \end{center}
 
-We fail to reject the null hypothesis, and two features of this test matter more
-than the failure itself. First, the realized win rate carries almost no
-information at these price levels. The dominant bucket --- 48 of 62 positions ---
-entered at a 98.7\% average price and resolved ``Yes'' 48 times out of 48; but
-under the market's own pricing, a perfect record across those positions has
-probability $0.987^{48} \approx 0.53$. A flawless outcome there is a coin flip,
-not a demonstrated skill, and the plot shows the same thing in every bucket: the
-realized rate tracks the price the account paid. Second, the test is underpowered
-against the edge the mechanism actually claims. At $n = 62$ and a null of 85.2\%,
-the realized rate would have had to reach roughly 94.1\% to reject at conventional
-significance --- a nine-point margin over the market's price --- while Section 7
-claims only a two-to-three-point timing edge. The correct reading of $p = 0.94$
-is therefore ``no edge large enough for this sample to detect,'' not ``edge ruled
-out.'' The positive side's profit is real and mechanically reliable; it is simply
-not something a win rate can attribute to skill rather than to buying contracts
-the market had already priced near certainty.
+We fail to reject the null hypothesis, and the shape of the result matters more
+than the failure. The 137 positions entered above 90\% implied confidence
+resolved the account's way 98.5\% of the time against a 98.5\% implied rate ---
+calibrated to the decimal, and uninformative for exactly that reason: buying a
+contract the market has priced at 98\% and watching it resolve at 98\% is
+arithmetic, not skill. A perfect record in that band carries little weight;
+across the 48-position ``Yes'' sub-bucket alone, a flawless outcome has
+probability $0.987^{48} \approx 0.53$ under the market's own pricing. The 18
+positions entered between 50\% and 90\% implied resolved at 38.9\% against a
+74.7\% implied rate --- a real shortfall, but one that two positions dominate
+(Section 6), leaving only a thin low-confidence tail behind the effect.
 
-\subsection{Test 3: Is the speed strategy's negative side calibrated?}
-
-The negative side buys ``No'' on a confirmed substitution or full-time whistle
---- mechanically a sell of ``Yes.'' The null hypothesis is that the market was
-already pricing those contracts efficiently, so the true win probability equals
-the average implied ``No'' price.
-\begin{align*}
-H_0:\; p = 0.956 \qquad H_1:\; p \neq 0.956 \qquad
-n = 102, \quad \hat p = 0.892
-\end{align*}
-\[
-z = \frac{0.892 - 0.956}{\sqrt{\dfrac{0.956\,(1 - 0.956)}{102}}} = -3.15,
-\qquad p = 0.0016.
-\]
-We reject the null hypothesis, in the unfavorable direction: the negative side's
-realized results are worse than its own entry prices implied. The shortfall lives
-entirely in the thirteen positions entered below 90\% implied confidence, where a
-30.8\% realized win rate ran against a 76.4\% implied one. Two positions drive it,
-and Section 6 examines them directly. The dominant, highest-confidence majority
-(89 of 102 positions) entered at a 98.4\% average price and won 97.8\% of the
-time --- the same uninformative regime as the positive side's 48-position bucket,
-where realized results and the price paid are mechanically almost identical and
-neither confirms nor denies an edge. The finding here is carried entirely by the
-minority of lower-confidence entries.
+The test is also underpowered against the edge the mechanism actually claims. At
+$n = 164$ and a null of 91.7\%, the realized rate would have had to clear roughly
+95\% to reject at conventional significance, while Section 7 claims only a
+two-to-three-point timing edge. The correct reading of $p = 0.070$ is ``no edge
+this sample can detect, plus a small miss concentrated in the least-priced
+entries'' --- not a demonstrated edge in either direction. The speed strategy's
+profit is real and mechanically reliable; it is simply not something a win rate
+can attribute to skill rather than to buying contracts the market had already
+priced near certainty.
 
 \subsection{What the win rates do and do not show}
 
-The headline win rates elsewhere in this paper --- 85.5\% for the speed
-strategy's positive side, 89.2\% for its negative side, 87.8\% combined --- invite
-a reading they cannot support. Both sides buy contracts the market has already
-priced between roughly 80\% and 99\% and hold them to settlement, so a high win
-rate is the arithmetic those entry prices predict, not a result. A perfectly
-calibrated market handed the same trades would produce the same numbers. The only
-question that separates edge from arithmetic is whether the realized rate exceeds
-the price the account paid, and Tests 2 and 3 answer it: the positive side shows
-no detectable excess, and the negative side shows a deficit. Neither is the
-profile of a strategy that prices better than the market.
+The speed strategy's headline win rate --- 87.8\% across its 164 held positions
+--- invites a reading it cannot support. The strategy buys contracts the market
+has already priced between roughly 80\% and 99\% and holds them to settlement, so
+a high win rate is the arithmetic those entry prices predict, not a result. A
+perfectly calibrated market handed the same trades would produce the same number.
+The only question that separates edge from arithmetic is whether the realized
+rate exceeds the price the account paid, and Test 2 answers it: the realized rate
+sits just below the price paid, not above it, and what miss there is concentrates
+in a thin band of low-confidence entries rather than reflecting a pricing edge.
+That is not the profile of a strategy that prices better than the market.
 
 That leaves the speed strategy's profitability resting entirely on a timing
 claim --- that it buys after a goal, substitution, or whistle is public but
@@ -359,9 +344,10 @@ survives a test against the market's own pricing.
 
 \subsection{Multiple comparisons and in-sample validity}
 
-Bonferroni-correcting the three tests above (threshold $0.05 / 3 = 0.0167$)
-changes no conclusion: Test 1 and Test 3 clear the corrected threshold
-comfortably, and Test 2 is non-significant either way. The larger limitation is
+Bonferroni-correcting the two tests above (threshold $0.05 / 2 = 0.025$)
+changes no conclusion: the mean-reversion test clears it by orders of magnitude,
+and the speed-strategy calibration test does not reach even the uncorrected
+$0.05$. The larger limitation is
 that the gap signal was designed and evaluated on the same thirty-five-day
 dataset, with no out-of-sample holdout. A complete census of every soccer
 competition Polymarket US lists finds that none of the other seventy leagues
@@ -376,9 +362,9 @@ A key risk to the patience strategy arises when the compound contract's stalenes
 does not close before kickoff. The exit is a passive resting sell, not a market
 order --- it depends on a counterparty's order arriving --- and when it does not
 fill in time the position is carried into live play, where match variance layers
-on top of an already-late exit. Of 192 round-trip positions, only 56 fully exited
-before kickoff as intended; the remaining 136 were carried into the match. The 56
-clean exits won 94.6\% of the time; the 136 delayed positions won only 78.7\%,
+on top of an already-late exit. Of 193 round-trip positions, only 56 fully exited
+before kickoff as intended; the remaining 137 were carried into the match. The 56
+clean exits won 96.4\% of the time; the 137 delayed positions won only 80.3\%,
 with lower average returns --- a real, quantified cost of fill risk, though the
 clean-exit figure is partly a selection artifact, since a position moving the
 wrong way is more likely to still be open at kickoff than sold at a loss
@@ -392,16 +378,17 @@ and $+\$23.57$ on its two largest tranches. The mispricing it was entered on was
 real; it simply closed late, and a first move the other way would have produced
 the opposite result on the same delay.
 
-The speed strategy's negative side carries a different risk: a confirmed
+The speed strategy carries a different risk on its ``No'' positions: a confirmed
 substitution or full-time whistle caps a player's remaining probability, but two
 positions were entered well short of certainty and resolved against the call.
 Charles De Ketelaere (goals-or-assists, Spain--Belgium, 07-10), entered at an
 average ``No'' price near 79\%, lost \$73.47 --- the largest single-position loss
 in the strategy data. Jovo Luki\'c (goals, Bosnia and Herzegovina--Qatar, 06-24),
 entered near 88\%, lost \$46.38. Both are genuine signal misses rather than
-execution artifacts, and together they account for the negative side's
-calibration shortfall in Test 3. The remaining eleven below-90\% entries and
-the entire above-90\% population resolved as their prices implied.
+execution artifacts; they are the two largest dollar losses in the strategy and
+most of the 50--90\% bucket's calibration gap in Test 2. Above 90\% implied ---
+137 of the strategy's 164 held positions --- realized and implied rates match to
+within a point.
 
 To keep the latency measurement honest, event timestamps are taken only from
 neutral match reports, never from Polymarket's price data, and second-half goals
@@ -463,10 +450,10 @@ patience strategy sells roughly a quarter of whatever remains once per minute,
 crossing the spread each round to guarantee that tranche fills.
 \item \textbf{Unconditional backstop.} A final sweep at kickoff itself closes
 anything the schedule leaves behind, so the position is always flat by kickoff
---- the property the trade record found missing in 136 of 192 cases.
+--- the property the trade record found missing in 137 of 193 cases.
 \item \textbf{Hold to settlement.} Once a speed-strategy entry lands near \$0.98
 to \$0.99, the remaining margin is too thin, net of the trading fee, to be worth
-an active sell. Zero of 192 patience-strategy round-trips were ever sold at a
+an active sell. Zero of 193 patience-strategy round-trips were ever sold at a
 price at or above \$0.90; every position that reached that band was held to
 settlement.
 \end{itemize}
@@ -524,11 +511,11 @@ at close, so every figure reported is fully realized. Total realized profit over
 the window was \$671.99, and it has two parts.
 
 The two strategies this paper analyzes account for \$655.27: \$304.64 from the
-patience strategy (compound positions actively sold, 193 closes), \$126.19 from
-the speed strategy's positive side (confirmed-event ``Yes'' held to settlement),
-and \$224.44 from its negative side --- \$193.52 on the 102 positions held to the
-final whistle plus \$30.92 on 16 closed by an active buy-to-cover beforehand. The
-other \$16.72 is the net result of discretionary trades the account placed in
+patience strategy (compound positions actively sold, 193 closes) and \$350.63
+from the speed strategy (confirmed-event trades held to settlement --- \$319.71
+on the 164 positions carried to the final whistle, plus \$30.92 on 16 closed by
+an active buy-to-cover beforehand). The other \$16.72 is the net result of
+discretionary trades the account placed in
 seven bet types outside either strategy --- match futures, advancement,
 match-winner, spreads, exact score, player shots, and shots on target, 26 markets
 across 89 fills, none of them player goal-or-assist props. These were not produced
@@ -545,32 +532,30 @@ return is not an artifact of a broad-market tailwind.
 \includegraphics[width=\linewidth]{figures/fig6_cumret.png}
 \end{center}
 
-The three strategy legs behave differently, and only one carries a statistically
+The two strategies behave differently, and only one carries a statistically
 validated edge:
 
 \begin{center}
-{\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{@{}l c c c@{}}
+\begin{tabular}{@{}l c c@{}}
 \toprule
-& Patience (sold) & Speed, positive (held) & Speed, negative (held) \\
+& Patience (sold) & Speed strategy (held) \\
 \midrule
-Positions        & 193      & 62       & 102 \\
-Win rate         & 85.0\%   & 85.5\%   & 89.2\% \\
-Net P\&L         & $+\$304.64$ & $+\$126.19$ & $+\$193.52$ \\
-Validated edge?  & Yes ($p<0.000001$) & No ($p=0.21$) & No --- underperforms ($p=0.0016$) \\
+Positions        & 193        & 164 \\
+Win rate         & 85.0\%     & 87.8\% \\
+Net P\&L         & $+\$304.64$ & $+\$319.71$ \\
+Validated edge?  & Yes ($p<0.000001$) & No ($p=0.070$) \\
 \bottomrule
-\end{tabular}}
+\end{tabular}
 \end{center}
 
-The negative-side row covers the 102 positions held to settlement, on which the
-calibration test is run; the same side realized a further \$30.92 on 16 positions
-closed by buy-to-cover before settlement, for a strategy total of \$224.44 as
-broken out above. The win-rate row is reported for completeness but discriminates
-almost nothing
-for the speed strategy: both of its sides bought contracts the market had already
-priced between 80\% and 99\%, so a high win rate is what those entry prices
-predict rather than a result (Section 5.4). The ``validated edge'' row is the one
-that separates the three, and only the patience strategy clears it.
+The speed row covers the 164 positions held to settlement, on which the
+calibration test is run; the strategy realized a further \$30.92 on 16 positions
+closed by buy-to-cover beforehand, for a total of \$350.63 as broken out above.
+The win-rate row is reported for completeness but discriminates almost nothing
+for the speed strategy: it bought contracts the market had already priced between
+80\% and 99\%, so a high win rate is what those entry prices predict rather than
+a result (Section 5). The ``validated edge'' row is the one that separates the
+two, and only the patience strategy clears it.
 
 Within the patience strategy, the fill-risk split is the more informative
 comparison: the 56 positions that exited before kickoff won 96.4\% of the time,
@@ -626,10 +611,10 @@ survives a test against the market's own pricing. A second strategy, trading
 confirmed public events directly, is profitable but its results are not
 evidence of skill: it buys contracts already priced at 80\% to 99\% and holds
 them, so its high win rate is arithmetic those prices predict, and a calibration
-test finds its positive side indistinguishable from its own entry pricing and its
-negative side significantly worse. What profit it makes rests on a timing claim
-the win rate cannot test and that only seven directly measured event latencies
-support. The account converted \$1{,}200 into \$671.99 in fully realized profit
+test cannot distinguish it from its own entry pricing (87.8\% realized against
+91.7\% implied, $p = 0.070$), with what miss there is confined to a thin tail of
+low-confidence entries. What profit it makes rests on a timing claim the win rate
+cannot test and that only seven directly measured event latencies support. The account converted \$1{,}200 into \$671.99 in fully realized profit
 over thirty-five days --- \$655.27 of it from the two strategies analyzed here,
 \$16.72 from discretionary trades outside them --- outperforming SPY
 ($+54.6\%$ against $-1.5\%$ on the strategy figure) over the identical window.
