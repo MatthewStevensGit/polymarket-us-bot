@@ -279,12 +279,12 @@ The positive side buys ``Yes'' on a confirmed goal or assist. The null
 hypothesis is that the market was already pricing those contracts efficiently, so
 the true win probability equals the average entry price.
 \begin{align*}
-H_0:\; p = 0.812 \qquad H_1:\; p \neq 0.812 \qquad
-n = 73, \quad \hat p = 0.849
+H_0:\; p = 0.852 \qquad H_1:\; p \neq 0.852 \qquad
+n = 62, \quad \hat p = 0.855
 \end{align*}
 \[
-z = \frac{0.849 - 0.812}{\sqrt{\dfrac{0.812\,(1 - 0.812)}{73}}} = 0.81,
-\qquad p = 0.21.
+z = \frac{0.855 - 0.852}{\sqrt{\dfrac{0.852\,(1 - 0.852)}{62}}} = 0.07,
+\qquad p = 0.94.
 \]
 
 \begin{center}
@@ -293,16 +293,16 @@ z = \frac{0.849 - 0.812}{\sqrt{\dfrac{0.812\,(1 - 0.812)}{73}}} = 0.81,
 
 We fail to reject the null hypothesis, and two features of this test matter more
 than the failure itself. First, the realized win rate carries almost no
-information at these price levels. The dominant bucket --- 52 of 73 positions ---
-entered at a 98.7\% average price and resolved ``Yes'' 52 times out of 52; but
+information at these price levels. The dominant bucket --- 48 of 62 positions ---
+entered at a 98.7\% average price and resolved ``Yes'' 48 times out of 48; but
 under the market's own pricing, a perfect record across those positions has
-probability $0.987^{52} \approx 0.51$. A flawless outcome there is a coin flip,
+probability $0.987^{48} \approx 0.53$. A flawless outcome there is a coin flip,
 not a demonstrated skill, and the plot shows the same thing in every bucket: the
 realized rate tracks the price the account paid. Second, the test is underpowered
-against the edge the mechanism actually claims. At $n = 73$ and a null of 81.2\%,
-the realized rate would have had to reach roughly 88.7\% to reject at conventional
-significance --- an eight-point margin over the market's price --- while Section 7
-claims only a two-to-three-point timing edge. The correct reading of $p = 0.21$
+against the edge the mechanism actually claims. At $n = 62$ and a null of 85.2\%,
+the realized rate would have had to reach roughly 94.1\% to reject at conventional
+significance --- a nine-point margin over the market's price --- while Section 7
+claims only a two-to-three-point timing edge. The correct reading of $p = 0.94$
 is therefore ``no edge large enough for this sample to detect,'' not ``edge ruled
 out.'' The positive side's profit is real and mechanically reliable; it is simply
 not something a win rate can attribute to skill rather than to buying contracts

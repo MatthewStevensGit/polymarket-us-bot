@@ -121,9 +121,9 @@ def fig_meanrev_vs_mc():
 
 # 5. Strategy II positive-side calibration --------------------------------
 def fig_calibration():
-    buckets = ["< $0.50\n(n=14)", "$0.50–$0.90\n(n=7)", "$0.90–$0.999\n(n=52)"]
-    realized = [35.7, 71.4, 100.0]
-    implied = [21.8, 70.2, 98.7]
+    buckets = ["< $0.50\n(n=9)", "$0.50–$0.90\n(n=5)", "$0.90–$0.999\n(n=48)"]
+    realized = [22.2, 60.0, 100.0]
+    implied = [21.7, 70.4, 98.7]
     x = np.arange(3)
     w = 0.36
     fig, ax = plt.subplots(figsize=(7.0, 3.2))
