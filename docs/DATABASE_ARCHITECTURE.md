@@ -12,7 +12,7 @@ data private, and every table's purpose auditable.
 
 | database | role | size | in the hot path? |
 |---|---|---|---|
-| `cache/polymarket.db` | **LIVE** — current season's tracking + the permanent account ledger | ~760 KB | yes |
+| `cache/polymarket.db` | **LIVE** — current season's tracking + the permanent account ledger | ~760 KB the day it was archived; has grown since (ongoing, private trading) | yes |
 | `cache/historical.db` | **COLD ARCHIVE** — concluded tournaments, same schema | ~450 MB | never |
 | `cache/kalshi_market_data.db` | broad Kalshi soccer-market capture (all series) | growing | own schedule |
 | `cache/lineup_data.db` | lineup-announcement timestamps (3rd-party source) | small | own schedule |
