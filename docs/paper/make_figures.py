@@ -119,11 +119,14 @@ def fig_meanrev_vs_mc():
     _finish(fig, ax, "fig4_meanrev_vs_mc.png")
 
 
-# 5. Strategy II positive-side calibration --------------------------------
+# 5. Speed-strategy calibration, both sides pooled ----------------------
 def fig_calibration():
-    buckets = ["< $0.50\n(n=9)", "$0.50–$0.90\n(n=5)", "$0.90–$0.999\n(n=48)"]
-    realized = [22.2, 60.0, 100.0]
-    implied = [21.7, 70.4, 98.7]
+    # All 164 held speed positions bucketed by implied entry price (the price
+    # paid for the side held). Above 90% the strategy is calibrated to the
+    # decimal; the shortfall is the thin 50-90% band, two positions dominating.
+    buckets = ["< 50% implied\n(n=9)", "50–90% implied\n(n=18)", "≥ 90% implied\n(n=137)"]
+    realized = [22.2, 38.9, 98.5]
+    implied = [21.7, 74.7, 98.5]
     x = np.arange(3)
     w = 0.36
     fig, ax = plt.subplots(figsize=(7.0, 3.2))
@@ -134,7 +137,7 @@ def fig_calibration():
     ax.set_xticklabels(buckets, fontsize=8)
     ax.set_ylabel("Percent")
     ax.set_ylim(0, 115)
-    ax.set_title("Strategy II Positive Side: Realized Win Rate vs. Entry Price")
+    ax.set_title("Speed Strategy: Realized Win Rate vs. Entry Price, All 164 Held Positions")
     ax.legend(fontsize=8, frameon=False)
     _finish(fig, ax, "fig5_calibration.png")
 
@@ -145,8 +148,8 @@ def fig_cumret():
     # reconstructed from the documented anchor points in the trade record:
     # worst relative point -$57.21 on 06-24; every close from 06-26 on a new
     # all-time high; drawdown episode $386.51 -> $312.57 around 07-10; terminal
-    # $655.27 (patience $304.64 + speed positive $126.19 + speed negative
-    # $224.44). Discretionary non-strategy trades are excluded.
+    # $655.27 (patience $304.64 + speed strategy $350.63). Discretionary
+    # non-strategy trades are excluded.
     days = np.array([0, 6, 9, 10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 26, 28,
                      30, 32, 34])  # calendar day index within 06-15..07-19
     pnl = np.array([0, 2, -9, -57.21, -9.1, 31.1, 78.3, 120, 165, 232, 300,
