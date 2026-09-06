@@ -76,50 +76,51 @@ events directly: when a goal, a substitution, or a final whistle makes one side
 of a contract near-certain, a resting order on the other side has not yet
 requoted, and whoever acts before the book adjusts is trading a latency gap.
 
-This paper measures the inefficiency, tests whether it holds up as a
-statistically significant effect, and asks whether either strategy actually
-beats the market's own pricing or only moves faster than it. Only the patience
-strategy does. The speed strategy is profitable, but it buys contracts already
-priced near certainty, so its win rate is the arithmetic of those prices rather
-than a measurable edge. Section 5 works through that distinction.
+The purpose of this paper is to measure the pricing inefficiency, test whether it
+is a consistent and statistically significant effect, and evaluate whether either
+strategy built around it beats the market's own pricing rather than merely
+trading faster than it. Only the patience strategy does. The speed strategy is
+profitable, but because it buys contracts already priced near certainty, its win
+rate is the arithmetic of those prices and not a measurable edge, a distinction
+Section 5 makes precise.
 
 \section{Data Pipeline and Screening Architecture}
 
-The analysis runs on an automated pipeline that finds pre-kickoff prop markets,
-checks them, and tracks them, while keeping out repricing driven by news rather
-than staleness. The goal is a clean sample of simultaneously observed three-leg
-quotes and a measurement of how prices behave in the window where the compound
-contract de-stales.
+This analysis relies on a fully automated data pipeline that identifies,
+validates, and tracks pre-kickoff prop markets while minimizing contamination
+from fundamentally driven repricing. The objective is a clean sample of
+simultaneously observed three-leg quotes and a measurement of price behavior in
+the window where the compound contract de-stales.
 
-The pipeline runs unattended on Windows Task Scheduler and pulls from three data
-sources. First, market and event data comes from Polymarket US's public gateway
+The pipeline runs unattended on Windows Task Scheduler and integrates three data
+sources. First, market and event data is read from Polymarket US's public gateway
 API, which carries a live score and match clock on each event object. Second, the
-account's own fills, balances, and settlements come from the authenticated
+account's own fills, balances, and settlements are read from the authenticated
 portfolio API, signed with an Ed25519 key over the message
-\texttt{\{timestamp\}\{method\}\{path\}}. Third, the event timestamps used for
-latency measurement come from neutral match reports (FIFA, ESPN, Al Jazeera),
-never from Polymarket's own price data, which keeps the latency figures from
-being circular.
+\texttt{\{timestamp\}\{method\}\{path\}}. Third, event timestamps used for latency
+measurement are drawn from neutral match reports (FIFA, ESPN, Al Jazeera), never
+from Polymarket's own price data, so that the latency figures are not circular.
 
 Polling is tiered by time to kickoff: every twenty minutes beyond six hours out,
-tightening to every sixty seconds inside the final thirty minutes. Markets are
-discovered structurally rather than from a hand-maintained list. The set of
-soccer leagues is pulled live from the platform's own sports endpoint, which
-returned seventy leagues besides the World Cup as of 2026-08-08; each league's
-games are then enumerated against the API.
+tightening to every sixty seconds inside the final thirty minutes. Market
+discovery is structural rather than a hand-maintained list. The set of soccer
+leagues is pulled live from the platform's own sports endpoint, which returned
+seventy leagues besides the World Cup as of 2026-08-08, and each league's games
+are then enumerated against the API.
 
 A clean three-leg observation is recorded only when the goals, assists, and
 goals-or-assists contracts for the same player can all be read from the same
-market state in a single pass. Pairing the three legs at identical capture
+market state in a single pass. Pairing all three legs at identical capture
 timestamps yields 157{,}595 simultaneous observations, of which 124{,}571 fall in
 the forty-eight hours before kickoff. This is the sample used throughout the
 paper.
 
-Every fill is reconciled at ingestion: each trade row's quantity is checked
-against its cost divided by its price, and the local trade log is matched
-one-to-one by trade identifier against a fully paginated pull of the account's
-complete live history (392 trades). The trading client used for these reads
-exposes only balance, position, and activity lookups, and cannot place orders.
+Every fill the account made is reconciled at ingestion: each trade row's quantity
+is checked against its cost divided by its price, and the local trade log is
+cross-checked one-to-one by trade identifier against a fully paginated pull of
+the account's complete live history (392 trades). The trading client used for
+these reads exposes only balance, position, and activity lookups, and contains no
+order-placement methods.
 
 \section{Signal Identification}
 
@@ -157,65 +158,68 @@ filled by a counterparty who is better informed than the formula.
 \section{Data Analysis}
 
 Every snapshot of quotes and book depth is bucketed by time to kickoff. The four
-figures below test the mechanisms the two strategies rely on.
+figures below test, against the data, the mechanisms the two strategies depend
+on.
 
 \subsection{Spread and Resting Depth by Market Leg}
 
-The plot below breaks out the mean bid--ask spread and the mean resting size for
-each of the three legs, over the forty-eight hours before kickoff, for the
-fourteen highest-coverage players.
+The plot below displays the mean bid--ask spread and the mean resting size for
+each of the three legs, measured over the forty-eight hours before kickoff for
+the fourteen highest-coverage players.
 
 \begin{center}
 \includegraphics[width=\linewidth]{figures/fig1_spread_depth.png}
 \end{center}
 
-The compound contract is the stale one on both measures at once. It carries a
-3.81$\times$ wider spread than the goals leg (\$0.0972 against \$0.0255) and
-rests 5.6$\times$ less size behind its quotes (52{,}966 against 295{,}156
-shares), widening to 7.5$\times$ in the final four hours. The goals leg barely
-moves: its spread stays near \$0.019 for the entire two days, and its book grows
-from roughly 295{,}000 to 376{,}000 shares as retail money arrives. The compound
-market does the opposite. It opens at a \$0.157 spread and compresses to \$0.047
-by kickoff, but its resting size never grows. Retail flow goes to the simple
-market and largely skips the compound one.
+The plot shows that the compound contract is the stale one on both measures at
+once. It carries a 3.81$\times$ wider spread than the goals leg (\$0.0972 against
+\$0.0255) and rests 5.6$\times$ less size behind its quotes (52{,}966 against
+295{,}156 shares), widening to 7.5$\times$ in the final four hours. The goals leg
+is the anchor: its spread stays near \$0.019 for the entire two days, and its
+book grows from roughly 295{,}000 to 376{,}000 shares as retail attention
+arrives. The compound market behaves nothing like it. It opens at a \$0.157
+spread and compresses to \$0.047 by kickoff, but its resting size never grows.
+Retail flow arrives into the simple market and largely ignores the compound one.
 
 \subsection{Logical-Floor Violation Rate by Time to Kickoff}
 
-The plot below shows the fraction of pre-kickoff observations in which the
+The plot below displays the fraction of pre-kickoff observations in which the
 compound bid sat below the goals bid, grouped by hours before kickoff.
 
 \begin{center}
 \includegraphics[width=\linewidth]{figures/fig2_violation_decay.png}
 \end{center}
 
-The best resting bid on the more likely outcome sat below the best resting bid on
-a subset of it in 28.81\% of pre-kickoff observations (35{,}894 of 124{,}571), by
-a mean of \$0.088. The violation rate is highest far from kickoff, 38.83\% at
-forty-two to forty-eight hours out, and falls to 21.23\% inside the final six
-hours, which is what a de-staling process predicts. It also runs opposite to
-fame. Messi's compound book violated the identity six times in 7{,}287
-observations. Players one tier below the household names, well known enough to
-draw flow but not so well known that the compound leg drew the same attention as
-the simple one, carried violation rates above 20\%.
+The plot shows that the best resting bid on the more likely outcome sat below the
+best resting bid on a subset of it in 28.81\% of pre-kickoff observations
+(35{,}894 of 124{,}571), by a mean of \$0.088. The violation rate is highest far
+from kickoff, 38.83\% at forty-two to forty-eight hours out, and decays to
+21.23\% inside the final six hours, as a de-staling process predicts. It also
+runs opposite to fame. Messi's compound book violated the identity six times in
+7{,}287 observations, while players one tier below the household names, well
+known enough for their markets to attract flow but not so well known that the
+compound leg was watched as closely as the simple one, carried violation rates
+above 20\%.
 
 \subsection{Mean Absolute Cross-Market Gap by Time to Kickoff}
 
-The plot below tracks the mean absolute difference between the compound price and
-its formula fair value, by time bucket, from more than a day before kickoff
+The plot below displays the mean absolute difference between the compound price
+and its formula fair value, by time bucket, from more than a day before kickoff
 through live play.
 
 \begin{center}
 \includegraphics[width=\linewidth]{figures/fig3_gap_by_time.png}
 \end{center}
 
-The gap is roughly flat near 0.025 for the entire pre-kickoff window and then
-more than triples, to 0.079, once the match goes live. Scoring events reach the
-three legs at different speeds, and that lag is what the second strategy trades.
+The plot shows that the gap is roughly flat near 0.025 for the entire pre-kickoff
+window and then more than triples, to 0.079, once the match goes live. Real
+scoring events hit the three legs at different speeds, and the resulting lag is
+the inefficiency the second strategy trades.
 
 \subsection{Gap Narrowing: Observed vs. Monte Carlo Benchmark}
 
-To check whether the pre-kickoff mispricing reverts rather than just drifts,
-per-step increments of \gap\ were computed from 182{,}760 consecutive
+To test whether the pre-kickoff mispricing actually reverts rather than merely
+drifting, per-step increments of \gap\ were computed from 182{,}760 consecutive
 same-player, same-game observations (median step about sixty-six seconds), giving
 a mean of approximately zero and a standard deviation of $\sigma = 0.0227$ per
 step. For each of the twenty-seven cleanly pre-kickoff-exited positions with a
@@ -228,11 +232,12 @@ absolute gap than they started with was recorded.
 \includegraphics[width=0.86\linewidth]{figures/fig4_meanrev_vs_mc.png}
 \end{center}
 
-The observed data narrows far more often than the volatility-matched benchmark:
-63.0\% of the real positions closed toward fair value, against 15.1\% of the
-simulated paths. The simulation is calibrated from the real step-by-step
-movements and has no drift, so the gap between 63\% and 15\% is not an artifact
-of a parameter choice.
+The plot shows that the observed data narrows far more often than the
+volatility-matched benchmark: 63.0\% of the real positions closed toward fair
+value, against 15.1\% of the simulated paths. Because the simulation is
+calibrated directly from the real second-by-second movements and assumes no
+drift, the difference between 63.0\% and 15.1\% reflects structure in the price
+process rather than a parameter choice.
 
 \section{Statistical Testing}
 
@@ -359,10 +364,10 @@ The 56 clean exits won 96.4\% of the time; the 137 delayed positions won only
 number is partly a selection artifact: a position moving the wrong way is more
 likely to still be open at kickoff than sold at a loss beforehand.
 
-Jeremy Doku's goals-or-assists position ahead of Belgium--Senegal is one example.
-It was bought across three pre-kickoff fills at \$0.29 to \$0.31, a blended
-\$0.2978, and was not sold before kickoff. Carried into the match, it filled
-across six tranches at \$0.38 to \$0.41, realizing $+\$25.18$ (+27.6\%) and
+Jeremy Doku's goals-or-assists position ahead of Belgium--Senegal is a clear
+example. It was bought across three pre-kickoff fills at \$0.29 to \$0.31, a
+blended \$0.2978, and was not sold before kickoff. Carried into the match, it
+filled across six tranches at \$0.38 to \$0.41, realizing $+\$25.18$ (+27.6\%) and
 $+\$23.57$ on its two largest tranches. The mispricing it was entered on was
 real. It closed late, and a first move the other way would have produced the
 opposite result on the same delay.
@@ -587,32 +592,33 @@ the capital, the strategy is capacity-bound by construction.
 
 \section{Conclusion}
 
-A thinly quoted compound prediction-market contract, priced against the more
-active single-stat contracts that decompose it, carries a mechanical pricing
-inefficiency. Its bid falls below the logical floor
-$P(\text{goal} \cup \text{assist}) \geq P(\text{goal})$ in 28.81\% of 124{,}571
-pre-kickoff observations, and that staleness reverts toward fair value far more
-often than a volatility-matched random walk predicts: 63.0\% against 15.1\%,
-$p < 0.000001$. This is the only edge in the paper that survives a test against
-the market's own pricing. A second strategy trades confirmed public events
-directly. It is profitable, but the results are not evidence of skill: it buys
-contracts already priced at 80\% to 99\% and holds them, so a high win rate is
-what those prices predict. A calibration test cannot separate it from its own
-entry pricing (87.8\% realized against 91.7\% implied, $p = 0.070$), and the
-small miss it does show sits in a thin tail of low-confidence entries. Its profit
-rests on a timing claim the win rate cannot test, supported by only seven
-directly measured event latencies. The account turned \$1{,}200 into \$671.99 of
-fully realized profit over thirty-five days: \$655.27 from the two strategies
-analyzed here and \$16.72 from discretionary trades outside them. On the strategy
-figure that is $+54.6\%$ against SPY's $-1.5\%$ over the same window.
+This study demonstrates that a thinly-quoted compound prediction-market contract,
+priced against the more actively quoted single-stat contracts that decompose it,
+carries a quantifiable, mechanical pricing inefficiency. Its bid falls below the
+logical floor $P(\text{goal} \cup \text{assist}) \geq P(\text{goal})$ in 28.81\%
+of 124{,}571 pre-kickoff observations, and that staleness reverts toward fair
+value far more often than a volatility-matched random walk predicts: 63.0\%
+against 15.1\%, $p < 0.000001$. This is the only edge in the paper that survives a
+test against the market's own pricing. A second strategy, trading confirmed
+public events directly, is profitable but its results are not evidence of skill:
+it buys contracts already priced at 80\% to 99\% and holds them, so its high win
+rate is arithmetic those prices predict, and a calibration test cannot
+distinguish it from its own entry pricing (87.8\% realized against 91.7\%
+implied, $p = 0.070$), with what miss there is confined to a thin tail of
+low-confidence entries. What profit it makes rests on a timing claim the win rate
+cannot test and that only seven directly measured event latencies support. The
+account converted \$1{,}200 into \$671.99 in fully realized profit over
+thirty-five days, \$655.27 of it from the two strategies analyzed here and
+\$16.72 from discretionary trades outside them, outperforming SPY ($+54.6\%$
+against $-1.5\%$ on the strategy figure) over the identical window.
 
 The inefficiency is real, but it is capacity-bound by construction. The account
 held the least capital when tournament opportunity was greatest and the most when
 it was smallest, and measured book depth against realized position size leaves no
-room to scale without redesigning the execution layer. The overall picture is a
-retail-heavy prediction market that prices its simple contracts efficiently and
-its compound contracts against itself, an asymmetry a faster, better-modeled
-counterparty can capture at small size but not, on this evidence, at
-institutional scale.
+room to scale without redesigning the execution layer. Ultimately, the findings
+suggest that a retail-heavy prediction market during a marquee event prices its
+simple contracts efficiently and its compound contracts against itself, an
+asymmetry a faster, better-modeled counterparty can capture at small size but
+not, on this evidence, at institutional scale.
 
 \end{document}
