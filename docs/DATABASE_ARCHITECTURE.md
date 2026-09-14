@@ -1,21 +1,24 @@
 # Database Architecture
 
-*What's in `cache/polymarket_public.db`, and where it came from.*
+*The data architecture behind the paper's account ledger and tracking data.*
 
-This covers exactly the twelve tables `cache/build_public_export.py` ships —
-nothing else. Everything here is scoped to the 2026 World Cup (June–July);
-no other tournament, league, or venue appears anywhere in this repository.
+This describes the twelve tables that made up the account ledger and
+market-tracking data behind the paper's numbers. Neither the database nor
+the collector code that built it is included in this repository — this
+document and the paper itself are what's published. Everything described
+here is scoped to the 2026 World Cup (June–July); no other tournament,
+league, or venue was involved.
 
-## Where each table's data actually lives day to day
+## Where each table's data actually lived, day to day
 
-Two source databases feed the export, only one of which is in this repo:
+Two source databases fed the export, neither of which is in this repo:
 
-- **`cache/polymarket.db`** (this repo, created by `collect_clean_triples.py`)
-  — the live tracking DB. Account-ledger tables live here permanently.
-- **`cache/historical.db`** (private, not in this repo) — where World Cup
-  tracking tables were moved once the tournament concluded, by a private
-  archive script. Same schema, same rows, different file — nothing about the
-  paper's numbers depends on that move.
+- **`cache/polymarket.db`** (private) — the live tracking DB. Account-ledger
+  tables lived here permanently.
+- **`cache/historical.db`** (private) — where World Cup tracking tables were
+  moved once the tournament concluded, by a private archive script. Same
+  schema, same rows, different file — nothing about the paper's numbers
+  depends on that move.
 
 ## Account ledger (from `cache/polymarket.db`, date-windowed to 2026-06-15 – 2026-07-19)
 
@@ -29,12 +32,12 @@ still-private strategies that have nothing to do with this paper.
 | `closed_trades_pnl` | `sell_trade_id`, `player`, `market_type`, `game_slug`, `tier`, `shares_closed`, `avg_buy_price`, `sell_price`, `dollar_pnl`, `percent_pnl`, `sell_time` | realized P&L per closing sell, derived from `trade_history` |
 | `settlement_history` | `resolution_key`, `resolved_at`, `market_slug`, `game_slug`, `player`, `market_type`, `tier`, `resolution_side`, `realized_pnl` | real market resolutions (a position held to settlement rather than sold) |
 | `cash_activity` | `transaction_id`, `activity_type`, `status`, `amount`, `currency`, `create_time`, `description` | deposits / withdrawals / transfers on the account |
-| `open_positions` | `player`, `market_type`, `game_slug`, `tier`, `remaining_size`, `avg_cost_basis`, `remaining_cost_basis` | fully derived from `trade_history` — not date-windowed (exported as the live table's current state), and empty in this export |
+| `open_positions` | `player`, `market_type`, `game_slug`, `tier`, `remaining_size`, `avg_cost_basis`, `remaining_cost_basis` | fully derived from `trade_history` — not date-windowed (the live table's current state), and empty as of the paper's writing |
 
 `tier` matters because "1+ goals" and "2+ goals" are separately priced
 tokens on the same player/market — an early version of this schema grouped
 by `(player, market_type, game_slug)` alone and silently pooled different
-tiers together; fixed before this export was built.
+tiers together; fixed before this data was published.
 
 ## World Cup tracking (from `cache/historical.db`, no window — the whole archived tournament)
 
@@ -46,7 +49,7 @@ tiers together; fixed before this export was built.
 | `game_poll_state` | `game_slug`, `last_checked_at` | per-game last-polled timestamp — gates the tiered polling interval |
 | `dropped_markets` | `market_slug`, `player`, `market_type`, `game_slug`, `dropped_at` | markets the collector stopped tracking (e.g. a player prop that disappeared from the book) |
 | `daily_discovery_state` | `last_run_date` | a single-row lock so the once-daily discovery pass doesn't re-run within the same day |
-| `fanduel_comparison` | `fetched_at`, `player`, `game_slug`, `market_type`, `settlement_window`, `fanduel_odds_american`, `fanduel_raw_implied_prob`, `polymarket_price`, `diff`, `source_url`, `notes` | manual, one-off FanDuel-vs-Polymarket price comparisons (`record_fanduel_comparison.py`) — 2 rows, not a scheduled process |
+| `fanduel_comparison` | `fetched_at`, `player`, `game_slug`, `market_type`, `settlement_window`, `fanduel_odds_american`, `fanduel_raw_implied_prob`, `polymarket_price`, `diff`, `source_url`, `notes` | manual, one-off FanDuel-vs-Polymarket price comparisons logged by hand — 2 rows, not a scheduled process |
 
 ## What's deliberately excluded
 
@@ -56,7 +59,7 @@ tick data — are 2.2M+ rows / ~420MB combined between them. Too large to
 publish directly; every conclusion they support is already reported in the
 paper's own tables and charts.
 
-## Row counts in this export (as shipped)
+## Row counts (from the paper's analysis window)
 
 | table | rows |
 |---|---|
