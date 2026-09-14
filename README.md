@@ -1,111 +1,97 @@
-# Polymarket / Kalshi — Cross-Venue Prediction-Market Research System
+# Polymarket US — 2026 World Cup Player-Prop Research
 
-A data-collection and research stack for US prediction markets (Polymarket US,
-Kalshi). It discovers markets tied to real scheduled soccer matches across ~76
-leagues on two venues, records tick-level pricing and order-book depth on a
-schedule, archives concluded tournaments, and runs fee-aware analysis for genuine
-cross-venue pricing gaps.
+A data-collection system and real-money trade ledger built for the 2026 FIFA
+World Cup (June–July), tracking Polymarket US player-prop markets — goals,
+assists, goals+assists — for a single tournament, plus the paper analyzing
+the results.
 
-**This public repository is a curated slice: the Polymarket US collection layer
-and the data-architecture design.** The live-trading components — order
-execution, position management, the Kalshi client, the cross-venue scanner, the
-funded account — are kept in a private repository. Prediction-market credentials
-belong nowhere near a public remote, and this project has a documented incident
-that taught that lesson. What's here is the part that's safe to show and,
-arguably, the more interesting part: how a stack of collectors, ten SQLite
-databases, and a dozen scheduled jobs stay correct and auditable while running
-unattended.
+**This repository is the complete World Cup slice**: the collector, the
+account ledger it produced, and the paper. Nothing here places, modifies, or
+cancels a real order — every authenticated call in this repo is read-only by
+design (see `TradingClient` in `data/client.py`). Any trading done during the
+tournament was placed by hand; this code observed and logged it.
 
 ### What's actually in this repository
 
-- `collect_clean_triples.py` — the unattended Polymarket US collector, plus its
-  `data/` layer (`client.py`, `markets.py`, `cache.py`). This is an earlier
-  snapshot of the collector: the account-ledger tables it creates here
-  (`trade_history`, `closed_trades_pnl`) predate `settlement_history`,
-  `cash_activity`, and `event_latency_validation` — added in a later, private
-  revision of this same script that is what actually produced the ledger
-  backing the paper and the export below. That revision isn't part of this
-  public slice.
+- `main.py` / `data/markets.py` — the original, simple fetch: pull World Cup
+  events, find their goals/assists/goals+assists markets, snapshot current
+  price. `data/cache.py` appends each pull to `cache/polymarket.db`
+  (`prop_snapshots`).
+- `collect_clean_triples.py` — the unattended version of the same idea, built
+  to run on a timer: a "clean triple" is one player's goals / assists /
+  goals+assists last-traded prices, all read from the same pre-kickoff market
+  state so the three numbers are comparable. Also tracks bid/ask depth, the
+  account's real trade history, and derived P&L, all scoped to World Cup
+  games only (`find_world_cup_events`, one tournament, one series ID — no
+  other league or venue is touched anywhere in this repo).
 - `record_fanduel_comparison.py` — a manual, one-off-per-invocation script:
   look up a player's FanDuel odds by hand, log the comparison against
-  Polymarket's current price to `cache/polymarket.db` (`fanduel_comparison`).
-  Not a scheduled job — FanDuel's research pages have no reliable per-player
-  URL or refresh signal to poll.
+  Polymarket's current price. Not a scheduled job — FanDuel's research pages
+  have no reliable per-player URL or refresh signal to poll.
 - `cache/build_public_export.py` and `cache/polymarket_public.db` — the
-  export builder and a sample exported database: the account ledger and
-  archived tick-data tables, filtered to the paper's own analysis window
-  (2026-06-15 to 2026-07-19) so none of the account's later, unrelated
-  real-money trading leaks in.
-- `docs/DATABASE_ARCHITECTURE.md` — the full ten-database inventory.
-- `docs/polymarket-worldcup-paper.pdf` — a short research paper on 2026 World Cup
-  player-prop pricing.
-
-The Kalshi client, the cross-venue fee-aware scanner, the paper-trading loops,
-every order-placement path, and the account's *current, ongoing* ledger live
-in a private repository and are described below only for context — what's
-exported here is a historical slice, not a live feed.
+  export builder and its output: every table from the tournament small enough
+  to publish, so the paper's numbers can be checked against the real data
+  behind them.
+- [`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md) — what's
+  in that export, table by table.
+- [`docs/polymarket-worldcup-paper.pdf`](docs/polymarket-worldcup-paper.pdf)
+  (+ `docs/paper/` source) — the paper.
 
 ---
 
-## What the system does
+## What the collector did
 
 | | |
 |---|---|
-| **Discovers** | soccer markets on Polymarket US and Kalshi tied to a real scheduled match — team winner, spread, total, both-teams-to-score, player props — matched *structurally* (a `"Team vs Team (date)"` event shape), not by a hand-maintained series list, because Kalshi alone lists 1,000+ soccer series. |
-| **Collects** | tiered by time-to-kickoff: a slow routine cadence far out, a dense ±5-minute window at kickoff kept in its own table, bid/ask/last/volume/open-interest and top-of-book depth on every tracked market. Once a match is played, un-logged price data is gone for good — the collectors exist to close that gap. |
-| **Archives** | a concluded tournament's tracking tables move from the live DB into a cold-archive DB by `game_slug` prefix — copy, verify row counts, full backup, *then* delete. The live DB dropped from ~445 MB to ~760 KB the day the World Cup archive ran; it's grown since as the account's still-private, ongoing trading keeps using the same ledger file. |
-| **Analyses** | a fee-aware scanner for Kalshi-vs-Polymarket pricing gaps on the same real-world outcome, net of both venues' real taker fees, with settlement-rule text pulled live so extra-time-eligible competitions are flagged as basis risk rather than treated as a clean lock. |
+| **Discovered** | World Cup goal/assist/goals+assists player-prop markets on Polymarket US, matched to confirmed games via the tournament's own `activeSeriesId` rather than a hardcoded game list — newly confirmed matchups appeared automatically as the bracket progressed (`data/markets.py::find_world_cup_events`). |
+| **Collected** | tiered by time-to-kickoff — every 20 min more than 6h out, down to every 1 min inside the final 30 minutes (`POLL_TIERS`) — plus a separate ±5-minute, 10-second-cadence window right at kickoff, and a 1-second reaction-time layer once a game went live, kept in its own table so it never mixes with routine tracking. |
+| **Logged** | the account's real fills, closed-trade P&L, market settlements, and cash activity from actual trading during the tournament — `trade_history`, `closed_trades_pnl`, `settlement_history`, `cash_activity`. |
+| **Published** | a filtered export (`cache/build_public_export.py`) covering exactly the paper's analysis window, 2026-06-15 to 2026-07-19. |
 
 ---
 
 ## Architecture
 
-Three public APIs feed scheduled collectors that write **ten independent SQLite
-databases**, deliberately not merged. The split is the point:
-
-- **`cache/polymarket.db` — LIVE.** Only the current season's tracking data plus
-  the permanent account ledger. Small, fast, always relevant.
-- **`cache/historical.db` — COLD ARCHIVE.** Concluded tournaments, same schema.
-  Large by design (hundreds of MB of tick history); never in the hot path.
-- **Per-engine research DBs** (paper-trading ledgers, the cross-venue scanner,
-  broad market capture) — each its own file, each its own schedule, none feeding
-  the others or the published results.
-
-A full inventory — every table, what writes it, what reads it, and a verdict on
-each — is in **[`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md)**.
-
 ```
-Polymarket Gateway API ─┐
-Polymarket Trading API ─┼─▶  scheduled collectors  ─▶  cache/polymarket.db (LIVE)  ─▶  archive ─▶ historical.db ─▶ public export
-Kalshi Public API      ─┘        (1–15 min)               + per-engine research DBs (private, no path to published output)
+Polymarket Gateway API (public, no auth) ─┐
+Polymarket Trading API (GET-only)         ─┴─▶ collect_clean_triples.py / main.py
+                                                          │
+                                                          ▼
+                                              cache/polymarket.db (live, this tournament)
+                                                          │  (tournament concluded)
+                                                          ▼
+                                              cache/historical.db (archived, private — not in this repo)
+                                                          │
+                                                          ▼
+                                        cache/build_public_export.py ──▶ cache/polymarket_public.db (published)
 ```
 
----
+`cache/historical.db` and the script that moves data into it aren't part of
+this repository — `build_public_export.py` (which is) reads from wherever
+each table currently lives and says so in its own comments. Nothing about
+the paper's numbers depends on that script; the archived rows are the same
+rows, same schema, just moved out of the live file once the tournament ended.
 
-## Engineering worth a look
+## Notes on the code itself
 
-- **Live / archive DB split.** Unbounded row growth — not table count — was the
-  real cost. `scripts/archive_to_historical.py` is a standing process, not a
-  one-off: filter by slug, verify the copy matches the source exactly, back up,
-  then delete, with SQLite cross-database rollback tested.
-- **Structural market discovery.** Kalshi lists 1,000+ soccer series and its own
-  data has copy-paste errors (a `*SPREAD` series titled `"… Game"`). Discovery
-  matches on event *shape* and cross-checks tickers against every known
-  market-type substring rather than trusting title text.
-- **Read-only dashboards that can't contend with the writer.** Local stdlib HTTP
-  servers, every DB connection opened `mode=ro` (enforced at the file level), so
-  a monitoring page can never block the live collector.
-- **Client-side rate limiting.** A thread-safe token bucket built into the Kalshi
-  client after 65 real 429s in one session were root-caused to concurrent workers
-  sharing one client with reactive-only backoff — smoothing the request rate
-  under the ceiling beats bursting then sleeping.
-- **Free-tier API budgeting.** Lineup-timestamp capture (api-football.com, 100
-  req/day *and* 10 req/min) is spent strategically inside the ~60–100-min
-  pre-kickoff announcement window and stops the moment lineups appear, rather
-  than polled on a timer.
-- **Honest results.** Where a scanned edge doesn't exist, it's reported as a zero,
-  not forced into a trade. Data-quality bugs (a rounded `qty` field overstating
-  partial fills by ~2%) are documented with the exact rows corrected.
+- **Rate-limit handling.** A 429 from Polymarket triggers an exponential
+  backoff retry (`data/client.py`, both the public `GatewayClient` and the
+  read-only `TradingClient`) rather than hammering the API or crashing the
+  run.
+- **GET-only by design.** `TradingClient` exposes exactly three read
+  endpoints — positions, activity history, balances. There is no order
+  creation, modification, cancellation, or close-position method anywhere in
+  this repository; that's an explicit boundary, not something left out by
+  accident.
+- **The published export leaves three tables out on purpose.**
+  `position_price_history`, `order_book_snapshots`, and
+  `reaction_time_snapshots` are 2.2M+ rows / ~420MB combined — too large to
+  publish directly. Everything they support is already aggregated into the
+  paper's own tables and figures. The four account-ledger tables
+  (`trade_history`, `closed_trades_pnl`, `settlement_history`,
+  `cash_activity`) are date-windowed to the paper's own analysis period, since
+  the account kept trading afterward under separate, still-private strategies
+  that have nothing to do with this paper.
 
 ---
 
@@ -117,10 +103,10 @@ pip install -r requirements.txt
 cp .env.example .env                               # then fill in your own keys
 ```
 
-`main.py` needs no credentials — Polymarket US market and event data is public
-and unauthenticated. The collector's account lookups are **GET-only by design**
-(`TradingClient` in `data/client.py` has no order-placement methods — an explicit
-phase boundary, not an oversight).
+`main.py` needs no credentials — Polymarket US market and event data is
+public and unauthenticated. The account-ledger scripts need
+`POLYMARKET_US_KEY_ID` / `POLYMARKET_US_SECRET_KEY` (used only for the
+GET-only `TradingClient` calls in `config.py`).
 
 ## Run
 
@@ -132,27 +118,27 @@ python collect_clean_triples.py     # the unattended collector — run on a 1-mi
 
 ## Stack
 
-Python 3.13 · `requests` · `pynacl` · SQLite (WAL, `mode=ro` readers) · Windows
-Task Scheduler · no heavyweight dependencies in the collection path.
+Python 3.13 · `requests` · `pynacl` (Ed25519 request signing) · SQLite · no
+heavyweight dependencies.
 
 ## Layout (this repo)
 
 ```
-config.py                             .env-based config, base URLs, discovery filters
+config.py                             .env-based config, base URLs, World Cup discovery filter
 main.py                               World Cup player-prop fetch + ad-hoc schema discovery (--raw)
-collect_clean_triples.py              the unattended live collector
+collect_clean_triples.py              the unattended collector, tiered polling + account ledger
 data/client.py                        Polymarket US — public gateway client + GET-only TradingClient
 data/markets.py                       World Cup event discovery + player-prop market filtering
 data/cache.py                         append-only SQLite snapshot cache (cache/polymarket.db)
 record_fanduel_comparison.py          on-demand: log one FanDuel-vs-Polymarket price comparison by hand
-cache/build_public_export.py          live ledger + archive → one shareable export
-cache/polymarket_public.db            sample public export
-docs/DATABASE_ARCHITECTURE.md         full ten-database inventory
-docs/polymarket-worldcup-paper.pdf    research paper
+cache/build_public_export.py          builds the published export from the live + archived DBs
+cache/polymarket_public.db            the published export
+docs/DATABASE_ARCHITECTURE.md         what's in the export, table by table
+docs/polymarket-worldcup-paper.pdf    the paper
 ```
 
-`signals/` and `execution/` are namespace placeholders in this slice — the
-probability models and decision logic are in the private repository.
+`signals/` and `execution/` are empty namespace placeholders in this
+repository — no code lives there.
 
 ## License
 

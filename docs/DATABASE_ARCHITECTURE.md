@@ -1,127 +1,74 @@
 # Database Architecture
 
-*Where every row comes from, and where it goes.*
+*What's in `cache/polymarket_public.db`, and where it came from.*
 
-The system writes to **ten SQLite databases**. They are deliberately not merged —
-the separation is a design decision that keeps the live path small, the research
-data private, and every table's purpose auditable.
+This covers exactly the twelve tables `cache/build_public_export.py` ships —
+nothing else. Everything here is scoped to the 2026 World Cup (June–July);
+no other tournament, league, or venue appears anywhere in this repository.
 
----
+## Where each table's data actually lives day to day
 
-## The split
+Two source databases feed the export, only one of which is in this repo:
 
-| database | role | size | in the hot path? |
-|---|---|---|---|
-| `cache/polymarket.db` | **LIVE** — current season's tracking + the permanent account ledger | ~760 KB the day it was archived; has grown since (ongoing, private trading) | yes |
-| `cache/historical.db` | **COLD ARCHIVE** — concluded tournaments, same schema | ~450 MB | never |
-| `cache/kalshi_market_data.db` | broad Kalshi soccer-market capture (all series) | growing | own schedule |
-| `cache/lineup_data.db` | lineup-announcement timestamps (3rd-party source) | small | own schedule |
-| `cache/kalshi_paper.db` | Kalshi paper-trading ledger — simulated orders only | small | own schedule |
-| `cache/polymarket_paper.db` | Polymarket paper-trading ledger — simulated orders only | small | own schedule |
-| `cache/cross_platform_arb.db` | fee-aware Kalshi-vs-Polymarket gap scanner — observation only | small | own schedule |
-| `cache/team_arb_paper.db` | team-market arb paper simulation | growing | own schedule |
-| `cache/fleet.db` | read-only research layer — consumes every DB above, produces no orders | small | offline |
-| `cache/polymarket_public.db` | the one shareable export (live ledger + archive → single file) | small | build step |
+- **`cache/polymarket.db`** (this repo, created by `collect_clean_triples.py`)
+  — the live tracking DB. Account-ledger tables live here permanently.
+- **`cache/historical.db`** (private, not in this repo) — where World Cup
+  tracking tables were moved once the tournament concluded, by a private
+  archive script. Same schema, same rows, different file — nothing about the
+  paper's numbers depends on that move.
 
-Solid rule: **the account ledger and the archive → export chain are the only path
-to published results.** The paper-trading and research databases never reach it.
+## Account ledger (from `cache/polymarket.db`, date-windowed to 2026-06-15 – 2026-07-19)
 
----
+Real fills, real settlements, real cash movement — filtered to the paper's
+analysis window because the account kept trading afterward under separate,
+still-private strategies that have nothing to do with this paper.
 
-## `cache/polymarket.db` — the live database
-
-19 tables + 1 view. Three zones:
-
-**Account ledger** (permanent — never archived):
-
-| table | written by | read by |
+| table | columns | what it holds |
 |---|---|---|
-| `trade_history` | real fills, via a GET-only trading client (deduped on `trade_id`) | P&L recompute, published results, latency validation |
-| `settlement_history` | real market resolutions | P&L recompute, published results |
-| `cash_activity` | deposits / withdrawals / transfers | NAV / Modified-Dietz return calc |
-| `closed_trades_pnl` / `open_positions` | fully derived — rebuilt from the three tables above every run | dashboards, published results |
+| `trade_history` | `trade_id`, `trade_time`, `game_slug`, `market_slug`, `player`, `market_type`, `tier`, `side`, `is_aggressor`, `price`, `qty`, `cost`, `strategy` | every real fill, deduped on `trade_id` |
+| `closed_trades_pnl` | `sell_trade_id`, `player`, `market_type`, `game_slug`, `tier`, `shares_closed`, `avg_buy_price`, `sell_price`, `dollar_pnl`, `percent_pnl`, `sell_time` | realized P&L per closing sell, derived from `trade_history` |
+| `settlement_history` | `resolution_key`, `resolved_at`, `market_slug`, `game_slug`, `player`, `market_type`, `tier`, `resolution_side`, `realized_pnl` | real market resolutions (a position held to settlement rather than sold) |
+| `cash_activity` | `transaction_id`, `activity_type`, `status`, `amount`, `currency`, `create_time`, `description` | deposits / withdrawals / transfers on the account |
+| `open_positions` | `player`, `market_type`, `game_slug`, `tier`, `remaining_size`, `avg_cost_basis`, `remaining_cost_basis` | fully derived from `trade_history` — not date-windowed (exported as the live table's current state), and empty in this export |
 
-> The public repository's `collect_clean_triples.py` is an earlier snapshot
-> that only creates `trade_history` and `closed_trades_pnl`; `settlement_history`,
-> `cash_activity`, and `event_latency_validation` were added in a later,
-> private revision. `cache/polymarket_public.db` ships all four, sourced from
-> the live account and window-filtered to the paper's 2026-06-15–2026-07-19
-> analysis period.
+`tier` matters because "1+ goals" and "2+ goals" are separately priced
+tokens on the same player/market — an early version of this schema grouped
+by `(player, market_type, game_slug)` alone and silently pooled different
+tiers together; fixed before this export was built.
 
-**Active-season tracking** (archived when a tournament concludes):
+## World Cup tracking (from `cache/historical.db`, no window — the whole archived tournament)
 
-| table | what it holds | cadence |
+| table | columns | what it holds |
 |---|---|---|
-| `clean_price_triples` | deduped pre-kickoff goals / assists / G+A last-trade triples — the strategy signal | tiered by time-to-kickoff |
-| `position_price_history` | dense bid/ask/last timeline for the watchlist | every run |
-| `order_book_snapshots` | top-5 book depth (JSON) for the watchlist | every run |
-| `kickoff_window_snapshots` | ±5 min of kickoff, 10 s cadence — kept separate from routine tracking | only near kickoff |
-| `market_price_history` | **broad capture** — every market type, every league, ~76 leagues, with the live score/clock logged alongside | tiered, own poll-state table |
+| `clean_price_triples` | `fetched_at`, `game_slug`, `player`, `goals_last`, `assists_last`, `ga_last`, `formula`, `gap` | the strategy signal: one player's goals / assists / goals+assists last-traded prices, all read from the same pre-kickoff market state |
+| `kickoff_window_snapshots` | `fetched_at`, `game_slug`, `player`, `market_type`, `bid`, `ask`, `bid_size`, `ask_size` | the dense ±5-minute, 10-second-cadence window around kickoff, kept separate from routine tracking |
+| `discovered_games` | `game_slug`, `title`, `start_date`, `players`, `first_seen_at` | every World Cup game the collector ever found, via the tournament's own series ID |
+| `game_poll_state` | `game_slug`, `last_checked_at` | per-game last-polled timestamp — gates the tiered polling interval |
+| `dropped_markets` | `market_slug`, `player`, `market_type`, `game_slug`, `dropped_at` | markets the collector stopped tracking (e.g. a player prop that disappeared from the book) |
+| `daily_discovery_state` | `last_run_date` | a single-row lock so the once-daily discovery pass doesn't re-run within the same day |
+| `fanduel_comparison` | `fetched_at`, `player`, `game_slug`, `market_type`, `settlement_window`, `fanduel_odds_american`, `fanduel_raw_implied_prob`, `polymarket_price`, `diff`, `source_url`, `notes` | manual, one-off FanDuel-vs-Polymarket price comparisons (`record_fanduel_comparison.py`) — 2 rows, not a scheduled process |
 
-**Operational state** — small tables (single digits to low hundreds of rows) that
-gate collector behaviour: per-game last-polled timestamps, once-per-day discovery
-locks, dropped-market diagnostics. They look like clutter by name; removing them
-breaks polling logic.
+## What's deliberately excluded
 
----
+`position_price_history`, `order_book_snapshots`, and
+`reaction_time_snapshots` — the dense, routine-cadence and 1-second-live
+tick data — are 2.2M+ rows / ~420MB combined between them. Too large to
+publish directly; every conclusion they support is already reported in the
+paper's own tables and charts.
 
-## `cache/historical.db` — the cold archive
+## Row counts in this export (as shipped)
 
-Same schema as the live DB, populated only where a `game_slug` matches an
-archived prefix. Nearly all of its size is three tables —
-`position_price_history`, `order_book_snapshots`, `reaction_time_snapshots` —
-each with 500k–1.1M rows of tick history. This file being large is the
-live/archive reorganisation *working*, not clutter. It gets a new sibling every
-time a tournament wraps:
-
-```bash
-python scripts/archive_to_historical.py --prefix <league> --dry-run   # copy + verify only
-python scripts/archive_to_historical.py --prefix <league>             # copy, verify, back up, delete
-```
-
-The script filters every `game_slug`-keyed table, verifies the copied row count
-matches the source *exactly* before deleting anything, and takes a full backup
-before the first delete. SQLite's cross-database rollback is tested — a failed
-archive leaves both databases untouched.
-
----
-
-## The paper-trading and research databases
-
-Four databases, each a fully separate file, each on its own schedule, **none of
-which feeds the published results**:
-
-- **`kalshi_paper.db` / `polymarket_paper.db`** — simulated-order ledgers. The
-  Kalshi one drives an untested single-game reversion rule; the Polymarket one
-  drives the *real, already-published* strategy logic, so it's a preview of what
-  the live system would do once the new season's markets list, before any real
-  capital is involved.
-- **`cross_platform_arb.db`** — one table. The scanner never places or simulates
-  an order; it measures. A gap counts only when Kalshi's ask + Polymarket's
-  implicit opposite-side ask total under $1.00 by *more than both venues' real
-  taker fees*. Settlement-rule text is pulled live, so extra-time-eligible
-  competitions are flagged as basis risk, not a clean lock.
-- **`team_arb_paper.db`** — a $1,000 paper simulation on team moneyline markets,
-  scanning every ~2 seconds (concurrent fetch), flat position sizing, with a
-  "lock integrity" check that verifies realised P&L exactly matches the profit
-  computed at entry (a real correctness test — this strategy has no probabilistic
-  losers by construction).
-
----
-
-## `cache/fleet.db` — the read-only research layer
-
-Consumes every database above and produces no orders. A backtest harness, a
-strategy-decorrelation view, and a target-weight allocator that places nothing.
-Isolated in its own virtual environment; an import-isolation test enforces that
-nothing here can reach an order-placement client.
-
----
-
-## Browsing safely while the collectors run
-
-Every dashboard and ad-hoc query opens its connection `mode=ro` (enforced at the
-file level, not by convention), so a reader can never contend with the live
-writer. Two always-fresh SQL views (`view_trade_ledger`, `view_upcoming_games`)
-are dropped and recreated on every connect so their definition always matches the
-code — cheap for a view, and it removes a class of "stale view" bugs.
+| table | rows |
+|---|---|
+| `discovered_games` | 3,050 |
+| `kickoff_window_snapshots` | 7,456 |
+| `trade_history` | 879 |
+| `dropped_markets` | 624 |
+| `closed_trades_pnl` | 209 |
+| `clean_price_triples` | 208 |
+| `settlement_history` | 178 |
+| `game_poll_state` | 25 |
+| `cash_activity` | 8 |
+| `fanduel_comparison` | 2 |
+| `open_positions` | 0 |
+| `daily_discovery_state` | 1 |
