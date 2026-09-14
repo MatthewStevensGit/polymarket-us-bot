@@ -1,3 +1,0 @@
-# Keep the paper byte-exact regardless of a contributor's core.autocrlf
-# setting — a stray CRLF filter silently corrupts a PDF.
-*.pdf      binary
