@@ -137,9 +137,6 @@ docs/DATABASE_ARCHITECTURE.md         what's in the export, table by table
 docs/polymarket-worldcup-paper.pdf    the paper
 ```
 
-`signals/` and `execution/` are empty namespace placeholders in this
-repository — no code lives there.
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
