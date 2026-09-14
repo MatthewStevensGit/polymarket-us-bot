@@ -1,8 +1,7 @@
 """
-Regenerate every figure in the World Cup paper in the visual idiom of
-C. Byhre, "Unhalt Reversion Strategy": a titled plot, a black empirical
-series, a red dashed benchmark line where one exists, a light grid, and a
-landscape frame. Run: python docs/paper/make_figures.py
+Regenerate every figure in the World Cup paper: a titled plot, a black
+empirical series, a red dashed benchmark line where one exists, a light
+grid, and a landscape frame. Run: python docs/paper/make_figures.py
 """
 import os
 import matplotlib
